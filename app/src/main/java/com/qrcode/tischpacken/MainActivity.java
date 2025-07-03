@@ -289,6 +289,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkPartNumber(String partNr) {
 
+        Set<Integer> selectedPositions = new HashSet<>();
+        for (int i = 0; i < selectedCartons.size(); i++) {
+            ArrayList<String> carton = selectedCartons.get(i);
+            String partNumber = carton.get(2);
+            if (partNumber.equals(partNr)) {
+                selectedPositions.add(i);
+                break;
+            }
+        }
+        if (selectedPositions.isEmpty()) {
+            txtScan.setBackgroundTintList(redColors);
+        } else {
+            txtScan.setBackgroundTintList(normalColors);
+        }
+
+        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions);
+        planListView.setAdapter(planListAdapter);
     }
 
     private boolean checkPermission() {
