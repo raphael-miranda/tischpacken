@@ -43,6 +43,9 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
+import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.mssmb2.SMB2CreateDisposition;
+import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
@@ -57,13 +60,17 @@ import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -190,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         btnUpdate.setOnClickListener(view -> {
-
+            downloadPlanFromSMB();
         });
 
         btnSave.setOnClickListener(view -> {
@@ -453,11 +460,6 @@ public class MainActivity extends AppCompatActivity {
                 .setCancelable(true);
         AlertDialog dialog = builder.create();
 
-        TextInputLayout fieldHostAddress = dialogView.findViewById(R.id.fieldHostAddress);
-        TextInputLayout fieldSharedFolder = dialogView.findViewById(R.id.fieldSharedFolder);
-        TextInputLayout fieldUsername = dialogView.findViewById(R.id.fieldUserName);
-        TextInputLayout fieldPassword = dialogView.findViewById(R.id.fieldPassword);
-
         TextInputEditText txtHost = dialogView.findViewById(R.id.txtHostAddress);
         TextInputEditText txtSharedFolder = dialogView.findViewById(R.id.txtSharedFolder);
         TextInputEditText txtUserName = dialogView.findViewById(R.id.txtUserName);
@@ -481,8 +483,7 @@ public class MainActivity extends AppCompatActivity {
             String username = txtUserName.getText().toString();
             String password = txtPassword.getText().toString();
 
-            SharedPreferences sharedPreferences1 = getSharedPreferences(getPackageName(), MODE_PRIVATE);
-            SharedPreferences.Editor editor = sharedPreferences1.edit();
+            SharedPreferences.Editor editor = getSharedPreferences(getPackageName(), MODE_PRIVATE).edit();
             editor.putString(Constants.SMB_SERVER_ADDRESS, hostAddress);
             editor.putString(Constants.SMB_SHARED_FOLDER, portNumber);
             editor.putString(Constants.SMB_USERNAME, username);
@@ -537,6 +538,101 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void downloadPlanFromSMB() {
+        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+
+        String hostname = sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, "");
+        String shareName = sharedPreferences.getString(Constants.SMB_SHARED_FOLDER, "");
+        String username = sharedPreferences.getString(Constants.SMB_USERNAME, "");
+        String password = sharedPreferences.getString(Constants.SMB_PASSWORD, "");
+
+        if (hostname.isEmpty() || shareName.isEmpty()) {
+            showInformationDialog("Error", "Please set the SMB Server");
+            return;
+        }
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            List<String> successFiles = new ArrayList<>();
+            List<String> failedFiles = new ArrayList<>();
+
+            try {
+                // SMB download logic here
+                SMBClient client = new SMBClient();
+                try (Connection connection = client.connect(hostname)) {
+                    AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), "");
+                    com.hierynomus.smbj.session.Session session = connection.authenticate(ac);
+                    DiskShare share = (DiskShare) session.connectShare(shareName);
+
+
+
+                    // Remote SMB file path
+                    Map<String, String> fileMap = new HashMap<>();
+                    fileMap.put("input/plan.xls", "plan.xls");
+                    fileMap.put("tischPacken/cartons.xlsx", "cartons.xlsx");
+                    fileMap.put("tischPacken/controlledparts.txt", "controlledparts.txt");
+
+                    for (Map.Entry<String, String> entry: fileMap.entrySet()) {
+                        String remotePath = entry.getKey();
+                        String localFileName = entry.getValue();
+
+                        try {
+                            // Local destination file
+                            File localFile = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + localFileName);
+                            if (!localFile.exists()) {
+                                localFile.getParentFile().mkdirs(); // ensure directory exists
+                                localFile.createNewFile();
+                            }
+
+                            try (InputStream is = share.openFile(
+                                    remotePath,
+                                    EnumSet.of(AccessMask.GENERIC_READ),
+                                    null,
+                                    SMB2ShareAccess.ALL,
+                                    SMB2CreateDisposition.FILE_OPEN,
+                                    null
+                            ).getInputStream();
+                                 FileOutputStream fos = new FileOutputStream(localFile)) {
+
+                                byte[] buffer = new byte[4096];
+                                int bytesRead;
+                                while ((bytesRead = is.read(buffer)) != -1) {
+                                    fos.write(buffer, 0, bytesRead);
+                                }
+                                Log.d("SMB", localFileName + " downloaded successfully.");
+                                successFiles.add(localFileName);
+                            }
+                        } catch (Exception fileEx) {
+                            Log.e("SMB", "Failed to download " + remotePath + ": " + fileEx.getMessage());
+                            failedFiles.add(localFileName);
+                        }
+                    }
+
+                    // Close everything safely
+                    share.close();
+                    session.close();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Connection failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+
+            // Notify success on main thread
+            mainHandler.post(() -> {
+                String message = "Downloaded: " + successFiles.size() + " file(s)";
+                if (!failedFiles.isEmpty()) {
+                    message += "\nFailed: " + String.join(", ", failedFiles);
+                }
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            });
+        });
+    }
 
     private void showInformationDialog(String title, String message) {
         new MaterialAlertDialogBuilder(this)
