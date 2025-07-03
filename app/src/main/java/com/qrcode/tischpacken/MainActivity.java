@@ -4,35 +4,74 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.textfield.TextInputEditText;
+
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DateUtil;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
 
     TextView txtTitle;
+    TextInputEditText txtName;
+    AppCompatButton btnNext;
+
+    TextView txtInspectorName, txtInspectorNumber, txtInspectorDate, txtPlannedCartons;
+
+    private RecyclerView planListView;
+
+    private ColorStateList normalColors;
+    private final ColorStateList yellowColors = new ColorStateList(
+            new int[][]{
+                    new int[]{android.R.attr.state_focused}, // Focused
+                    new int[]{-android.R.attr.state_enabled}, // Disabled
+                    new int[]{} // Default
+            },
+            new int[]{
+                    Color.YELLOW,
+                    Color.YELLOW,
+                    Color.YELLOW
+            }
+    );
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,7 +85,50 @@ public class MainActivity extends AppCompatActivity {
         });
 
         txtTitle = findViewById(R.id.txtTitle);
+        txtName = findViewById(R.id.txtName);
+        btnNext = findViewById(R.id.btnNext);
+
+        txtInspectorName = findViewById(R.id.txtInspectorName);
+        txtInspectorNumber = findViewById(R.id.txtInspectorNumber);
+        txtInspectorDate = findViewById(R.id.txtInspectorDate);
+        txtPlannedCartons = findViewById(R.id.txtPlannedCartons);
+
+        planListView = findViewById(R.id.planListView);
+        planListView.setLayoutManager(new LinearLayoutManager(this));
+
+
         txtTitle.setText(getString(R.string.title, 0, 0));
+
+        normalColors = txtName.getBackgroundTintList();
+        if (txtName.getText().toString().isEmpty()) {
+            txtName.setBackgroundTintList(yellowColors);
+        } else {
+            txtName.setBackgroundTintList(normalColors);
+        }
+        txtName.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                String strName = txtName.getText().toString();
+                if (strName.isEmpty()) {
+                    txtName.setBackgroundTintList(yellowColors);
+                    btnNext.setEnabled(true);
+                } else {
+                    txtName.setBackgroundTintList(normalColors);
+                    readPlanExcel(strName);
+                    btnNext.setEnabled(true);
+                }
+            }
+        });
 
 
         if (!checkPermission()) {
@@ -91,14 +173,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void checkLoggerFolder(){
 
-        File loggerFile = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName);
+        File appFolder = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName);
 
-        if(!loggerFile.exists()){
-            boolean isLoggerCreated = loggerFile.mkdir();
+        if(!appFolder.exists()){
+            boolean isLoggerCreated = appFolder.mkdir();
         }else{
             File exlFile2 = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName);
 
-            File loginExcel = new File(loggerFile, "/plan.xls");
+            File loginExcel = new File(appFolder, "/plan.xls");
             if(!loginExcel.exists()){
                 copyAssets();
             }
@@ -157,4 +239,71 @@ public class MainActivity extends AppCompatActivity {
             out.write(buffer, 0, read);
         }
     }
+
+
+    public void readPlanExcel(String inspectorName) {
+        ArrayList<ArrayList<String>> cellList = new ArrayList<>();
+        int totalNoOfCartons = 0;
+        try{
+            String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
+            FileInputStream fs = new FileInputStream(FilePath);
+            Workbook wb = new HSSFWorkbook(fs);
+
+            Sheet sheet = wb.getSheetAt(0);
+
+            for (Row row: sheet) {
+                if (row.getRowNum() == 0) continue;
+
+                ArrayList<String> rowValue= new ArrayList<>();
+                Cell inspectorCell = row.getCell(1);
+
+                if (inspectorCell.getStringCellValue().equals(inspectorName)) {
+                    for (Cell cell: row) {
+                        switch (cell.getCellType()) {
+                            case STRING:
+                                rowValue.add(cell.getStringCellValue());
+                                break;
+                            case NUMERIC:
+                                if (DateUtil.isCellDateFormatted(cell)) {
+                                    rowValue.add(cell.getDateCellValue().toString());
+                                } else {
+                                    rowValue.add(String.valueOf((int)cell.getNumericCellValue()));
+                                    if (cell.getColumnIndex() == 4) {
+                                        int noOfCartons = (int)cell.getNumericCellValue();
+                                        totalNoOfCartons += noOfCartons;
+                                    }
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    cellList.add(rowValue);
+                }
+            }
+
+            wb.close();
+            fs.close();
+        }catch(Exception exp){
+            exp.printStackTrace();
+        }
+
+        if (cellList.isEmpty()) {
+            txtInspectorName.setText("");
+            txtInspectorNumber.setText("");
+            txtInspectorDate.setText("");
+            txtPlannedCartons.setText("");
+        } else {
+            ArrayList<String> rowValue = cellList.get(0);
+            txtInspectorName.setText(rowValue.get(1));
+            txtInspectorNumber.setText("");
+            txtInspectorDate.setText(rowValue.get(0));
+            txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
+        }
+
+        Set<Integer> selectedPositions = new HashSet<>();
+        PlanListAdapter planListAdapter = new PlanListAdapter(cellList, selectedPositions);
+        planListView.setAdapter(planListAdapter);
+    }
+
 }
