@@ -2,6 +2,7 @@ package com.qrcode.tischpacken;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.content.res.ColorStateList;
@@ -9,14 +10,23 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.app.ActivityCompat;
@@ -24,10 +34,19 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.auth.AuthenticationContext;
+import com.hierynomus.smbj.connection.Connection;
+import com.hierynomus.smbj.share.DiskShare;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -46,18 +65,24 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
 
-    TextView txtTitle;
-    TextInputEditText txtName;
-    AppCompatButton btnNext;
+    private TextView txtTitle;
+    private TextInputEditText txtName;
+    private AppCompatButton btnNext;
 
-    TextView txtInspectorName, txtInspectorNumber, txtInspectorDate, txtPlannedCartons;
+    private TextView txtInspectorName, txtInspectorNumber, txtInspectorDate, txtPlannedCartons;
 
     private RecyclerView planListView;
+
+    private TextInputEditText txtScan;
+    private AppCompatButton btnAdd;
+    private ImageButton btnSettings, btnUpdate, btnSave;
 
     private ColorStateList normalColors;
     private final ColorStateList yellowColors = new ColorStateList(
@@ -72,6 +97,21 @@ public class MainActivity extends AppCompatActivity {
                     Color.YELLOW
             }
     );
+
+    private final ColorStateList redColors = new ColorStateList(
+            new int[][]{
+                    new int[]{android.R.attr.state_focused}, // Focused
+                    new int[]{-android.R.attr.state_enabled}, // Disabled
+                    new int[]{} // Default
+            },
+            new int[]{
+                    Color.RED,
+                    Color.RED,
+                    Color.RED
+            }
+    );
+
+    ArrayList<ArrayList<String>> selectedCartons = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -95,41 +135,25 @@ public class MainActivity extends AppCompatActivity {
 
         planListView = findViewById(R.id.planListView);
         planListView.setLayoutManager(new LinearLayoutManager(this));
+        DividerItemDecoration divider = new DividerItemDecoration(planListView.getContext(), LinearLayoutManager.VERTICAL);
+        planListView.addItemDecoration(divider);
 
+        txtScan = findViewById(R.id.txtScan);
+        btnAdd = findViewById(R.id.btnAdd);
+
+        btnSettings = findViewById(R.id.btnSettings);
+        btnUpdate = findViewById(R.id.btnUpdate);
+        btnSave = findViewById(R.id.btnSave);
 
         txtTitle.setText(getString(R.string.title, 0, 0));
 
         normalColors = txtName.getBackgroundTintList();
         if (txtName.getText().toString().isEmpty()) {
             txtName.setBackgroundTintList(yellowColors);
-        } else {
-            txtName.setBackgroundTintList(normalColors);
         }
-        txtName.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
-            }
-
-            @Override
-            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
-            }
-
-            @Override
-            public void afterTextChanged(Editable editable) {
-                String strName = txtName.getText().toString();
-                if (strName.isEmpty()) {
-                    txtName.setBackgroundTintList(yellowColors);
-                    btnNext.setEnabled(true);
-                } else {
-                    txtName.setBackgroundTintList(normalColors);
-                    readPlanExcel(strName);
-                    btnNext.setEnabled(true);
-                }
-            }
-        });
-
+        if (txtScan.getText().toString().isEmpty()) {
+            txtScan.setBackgroundTintList(yellowColors);
+        }
 
         if (!checkPermission()) {
             List<String> permissionsNeeded = new ArrayList<>();
@@ -160,6 +184,104 @@ public class MainActivity extends AppCompatActivity {
         } else {
             Toast.makeText(getApplication(),"You didn't provided all the permissions", Toast.LENGTH_SHORT).show();
         }
+
+        btnSettings.setOnClickListener(view -> {
+            showSettingsDialog();
+        });
+
+        btnUpdate.setOnClickListener(view -> {
+
+        });
+
+        btnSave.setOnClickListener(view -> {
+
+        });
+
+        initNameInput();
+        initContentsInput();
+    }
+
+    private void initNameInput() {
+
+        txtName.requestFocus();
+//        if (!isManual) {
+//            txtName.setShowSoftInputOnFocus(false);
+//            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+//        }
+        txtName.post(() -> txtName.setSelection(txtName.getText().length()));
+
+        txtName.setOnKeyListener((view, keyCode, event) -> {
+
+            if (keyCode== KeyEvent.KEYCODE_ENTER)
+            {
+                // Just ignore the [Enter] key
+                return true;
+            }
+            // Handle all other keys in the default way
+            return (keyCode == KeyEvent.KEYCODE_ENTER);
+        });
+
+        txtName.addTextChangedListener(new SimpleTextWatcher() {
+            @Override
+            public void afterTextChanged() {
+                String strName = txtName.getText().toString();
+                if (strName.isEmpty()) {
+                    txtName.setBackgroundTintList(yellowColors);
+                    btnNext.setEnabled(true);
+                } else {
+                    checkNameFromExcel(strName);
+                }
+            }
+        });
+    }
+
+    private void initContentsInput() {
+        txtScan.setText("");
+        txtScan.setEnabled(false);
+//        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+//        boolean isManual = sharedPreferences.getBoolean(IS_MANUAL, false);
+
+//        if (!isManual) {
+//            txtScan.setShowSoftInputOnFocus(false);
+//            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+//        }
+        txtScan.post(() -> txtScan.setSelection(txtScan.getText().length()));
+
+        txtScan.setOnKeyListener((view, keyCode, event) -> {
+
+            if (keyCode==KeyEvent.KEYCODE_ENTER)
+            {
+                // Just ignore the [Enter] key
+                return true;
+            }
+            // Handle all other keys in the default way
+            return (keyCode == KeyEvent.KEYCODE_ENTER);
+        });
+        txtScan.addTextChangedListener(new SimpleTextWatcher() {
+
+            @Override
+            public void afterTextChanged() {
+                String strCtNr = txtScan.getText().toString();
+                int count = strCtNr.split(";").length;
+
+                if(count == 4) {
+                    String partNr = strCtNr.split(";")[1];
+                    String strDNr2 = strCtNr.split(";")[2];
+                    String qtty = strCtNr.split(";")[3];
+                    String strCartonNr = strCtNr.split(";")[0];
+
+                    checkPartNumber(partNr);
+                }
+
+                if (txtScan.getText().toString().isEmpty()) {
+                    txtScan.setBackgroundTintList(yellowColors);
+                }
+            }
+        });
+    }
+
+    private void checkPartNumber(String partNr) {
+
     }
 
     private boolean checkPermission() {
@@ -178,8 +300,6 @@ public class MainActivity extends AppCompatActivity {
         if(!appFolder.exists()){
             boolean isLoggerCreated = appFolder.mkdir();
         }else{
-            File exlFile2 = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName);
-
             File loginExcel = new File(appFolder, "/plan.xls");
             if(!loginExcel.exists()){
                 copyAssets();
@@ -241,8 +361,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void readPlanExcel(String inspectorName) {
-        ArrayList<ArrayList<String>> cellList = new ArrayList<>();
+    public void checkNameFromExcel(String inspectorName) {
+        selectedCartons = new ArrayList<>();
         int totalNoOfCartons = 0;
         try{
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
@@ -278,7 +398,7 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                         }
                     }
-                    cellList.add(rowValue);
+                    selectedCartons.add(rowValue);
                 }
             }
 
@@ -288,22 +408,143 @@ public class MainActivity extends AppCompatActivity {
             exp.printStackTrace();
         }
 
-        if (cellList.isEmpty()) {
+        if (selectedCartons.isEmpty()) {
             txtInspectorName.setText("");
             txtInspectorNumber.setText("");
             txtInspectorDate.setText("");
             txtPlannedCartons.setText("");
+
+            txtName.setEnabled(true);
+            txtName.setBackgroundTintList(yellowColors);
         } else {
-            ArrayList<String> rowValue = cellList.get(0);
+            ArrayList<String> rowValue = selectedCartons.get(0);
             txtInspectorName.setText(rowValue.get(1));
             txtInspectorNumber.setText("");
             txtInspectorDate.setText(rowValue.get(0));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
+
+            txtName.setBackgroundTintList(normalColors);
+            txtName.setEnabled(false);
+            txtScan.setEnabled(true);
+            txtScan.requestFocus();
         }
 
         Set<Integer> selectedPositions = new HashSet<>();
-        PlanListAdapter planListAdapter = new PlanListAdapter(cellList, selectedPositions);
+        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions);
         planListView.setAdapter(planListAdapter);
     }
 
+
+    private abstract static class SimpleTextWatcher implements TextWatcher {
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+        @Override public void afterTextChanged(Editable s) {
+            afterTextChanged();
+        }
+        public abstract void afterTextChanged();
+    }
+
+    private void showSettingsDialog() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_settings, null);
+        builder.setView(dialogView)
+                .setCancelable(true);
+        AlertDialog dialog = builder.create();
+
+        TextInputLayout fieldHostAddress = dialogView.findViewById(R.id.fieldHostAddress);
+        TextInputLayout fieldSharedFolder = dialogView.findViewById(R.id.fieldSharedFolder);
+        TextInputLayout fieldUsername = dialogView.findViewById(R.id.fieldUserName);
+        TextInputLayout fieldPassword = dialogView.findViewById(R.id.fieldPassword);
+
+        TextInputEditText txtHost = dialogView.findViewById(R.id.txtHostAddress);
+        TextInputEditText txtSharedFolder = dialogView.findViewById(R.id.txtSharedFolder);
+        TextInputEditText txtUserName = dialogView.findViewById(R.id.txtUserName);
+        TextInputEditText txtPassword = dialogView.findViewById(R.id.txtPassword);
+
+        MaterialButton btnSave = dialogView.findViewById(R.id.btnSave);
+        MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
+        MaterialButton btnTestConnection = dialogView.findViewById(R.id.btnTestConnection);
+
+        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+
+        txtHost.setText(sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, ""));
+        txtSharedFolder.setText(sharedPreferences.getString(Constants.SMB_SHARED_FOLDER, ""));
+        txtUserName.setText(sharedPreferences.getString(Constants.SMB_USERNAME, ""));
+        txtPassword.setText(sharedPreferences.getString(Constants.SMB_PASSWORD, ""));
+
+        btnSave.setOnClickListener(view -> {
+
+            String hostAddress = txtHost.getText().toString();
+            String portNumber = txtSharedFolder.getText().toString();
+            String username = txtUserName.getText().toString();
+            String password = txtPassword.getText().toString();
+
+            SharedPreferences sharedPreferences1 = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+            SharedPreferences.Editor editor = sharedPreferences1.edit();
+            editor.putString(Constants.SMB_SERVER_ADDRESS, hostAddress);
+            editor.putString(Constants.SMB_SHARED_FOLDER, portNumber);
+            editor.putString(Constants.SMB_USERNAME, username);
+            editor.putString(Constants.SMB_PASSWORD, password);
+            editor.apply();
+
+            dialog.dismiss();
+        });
+
+        btnCancel.setOnClickListener(view -> dialog.dismiss());
+
+        btnTestConnection.setOnClickListener(view -> {
+            String hostAddress = txtHost.getText().toString();
+            String sharedFolder = txtSharedFolder.getText().toString();
+            String username = txtUserName.getText().toString();
+            String password = txtPassword.getText().toString();
+
+            testSmbConnection(hostAddress, sharedFolder, username, password);
+        });
+
+        dialog.show();
+    }
+
+    private void testSmbConnection(String serverIp, String shareName, String username, String password) {
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            try {
+                // SMB upload logic here
+                SMBClient client = new SMBClient();
+                try (Connection connection = client.connect(serverIp)) {
+                    AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), "");
+                    com.hierynomus.smbj.session.Session session = connection.authenticate(ac);
+                    DiskShare share = (DiskShare) session.connectShare(shareName);
+                    share.close();
+                    session.close();
+                }
+
+                // Notify success on main thread
+                mainHandler.post(() -> {
+                    showInformationDialog("Test Success", "Your SMB Server is available!");
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                mainHandler.post(() -> {
+                    showInformationDialog("Test Failed", "Your SMB Server is unavailable!");
+                });
+            }
+        });
+    }
+
+
+    private void showInformationDialog(String title, String message) {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setNegativeButton("OK", (dialogInterface, i) -> {
+                    dialogInterface.dismiss();
+                })
+                .show();
+    }
 }

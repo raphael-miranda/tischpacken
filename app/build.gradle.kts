@@ -42,4 +42,5 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
 
     implementation(libs.poi.ooxml)
+    implementation(group = "com.hierynomus", name = "smbj", version = "0.13.0")
 }
