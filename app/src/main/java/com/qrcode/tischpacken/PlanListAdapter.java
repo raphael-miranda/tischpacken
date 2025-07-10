@@ -9,14 +9,15 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
 public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanViewHolder> {
-    ArrayList<ArrayList<String>> list;
+    ArrayList<HashMap<String, String>> list;
     private Set<Integer> selectedPositions = new HashSet<>();
 
-    public PlanListAdapter(ArrayList<ArrayList<String>> list, Set<Integer> selectedPositions) {
+    public PlanListAdapter(ArrayList<HashMap<String, String>> list, Set<Integer> selectedPositions) {
         this.list = list;
         this.selectedPositions = selectedPositions;
     }
@@ -45,16 +46,16 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
 
     @Override
     public void onBindViewHolder(PlanViewHolder holder, int position) {
-        ArrayList<String> localList = list.get(position);
+        HashMap<String, String> localList = list.get(position);
 
-        holder.txtPartNumber.setText(localList.get(2));
-        holder.txtType.setText(localList.get(3));
-        holder.txtNoOfCarton.setText(localList.get(4));
+        holder.txtPartNumber.setText(localList.getOrDefault(Constants.PART_NUMBER, ""));
+        holder.txtType.setText(localList.getOrDefault(Constants.TYPE, ""));
+        holder.txtNoOfCarton.setText(localList.getOrDefault(Constants.NO_OF_CARTON, ""));
         holder.txtCartonNumber.setText("");
 
         // Apply background if selected
         if (selectedPositions.contains(position)) {
-            holder.itemView.setBackgroundColor(Color.GREEN);
+            holder.itemView.setBackgroundResource(R.color.green);
         } else {
             holder.itemView.setBackgroundColor(Color.WHITE);
         }

@@ -71,6 +71,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -118,7 +119,7 @@ public class MainActivity extends AppCompatActivity {
             }
     );
 
-    ArrayList<ArrayList<String>> selectedCartons = new ArrayList<>();
+    ArrayList<HashMap<String, String>> selectedCartons = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -274,10 +275,12 @@ public class MainActivity extends AppCompatActivity {
                 if(count == 4) {
                     String partNr = strCtNr.split(";")[1];
                     String strDNr2 = strCtNr.split(";")[2];
-                    String qtty = strCtNr.split(";")[3];
+                    String strQtty = strCtNr.split(";")[3];
                     String strCartonNr = strCtNr.split(";")[0];
 
-                    checkPartNumber(partNr);
+                    int qtty = Integer.parseInt(strQtty);
+
+                    checkPartNumber(partNr, qtty);
                 }
 
                 if (txtScan.getText().toString().isEmpty()) {
@@ -287,12 +290,12 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void checkPartNumber(String partNr) {
+    private void checkPartNumber(String partNr, int qtty) {
 
         Set<Integer> selectedPositions = new HashSet<>();
         for (int i = 0; i < selectedCartons.size(); i++) {
-            ArrayList<String> carton = selectedCartons.get(i);
-            String partNumber = carton.get(2);
+            HashMap<String, String> carton = selectedCartons.get(i);
+            String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
             if (partNumber.equals(partNr)) {
                 selectedPositions.add(i);
                 break;
@@ -398,30 +401,56 @@ public class MainActivity extends AppCompatActivity {
             for (Row row: sheet) {
                 if (row.getRowNum() == 0) continue;
 
-                ArrayList<String> rowValue= new ArrayList<>();
+                HashMap<String, String> rowValue= new HashMap<>();
                 Cell inspectorCell = row.getCell(1);
 
                 if (inspectorCell.getStringCellValue().equals(inspectorName)) {
                     for (Cell cell: row) {
+
+                        String value = "";
+
                         switch (cell.getCellType()) {
                             case STRING:
-                                rowValue.add(cell.getStringCellValue());
+                                value = cell.getStringCellValue();
                                 break;
                             case NUMERIC:
                                 if (DateUtil.isCellDateFormatted(cell)) {
-                                    rowValue.add(cell.getDateCellValue().toString());
+                                    value = cell.getDateCellValue().toString();
                                 } else {
-                                    rowValue.add(String.valueOf((int)cell.getNumericCellValue()));
-                                    if (cell.getColumnIndex() == 4) {
-                                        int noOfCartons = (int)cell.getNumericCellValue();
-                                        totalNoOfCartons += noOfCartons;
-                                    }
+                                    value = String.valueOf((int)cell.getNumericCellValue());
                                 }
                                 break;
                             default:
                                 break;
                         }
+
+                        if (cell.getColumnIndex() == 0) {
+                            rowValue.put(Constants.DATE, value);
+                        }
+                        if (cell.getColumnIndex() == 1) {
+                            rowValue.put(Constants.INSPECTOR, value);
+                        }
+
+                        if (cell.getColumnIndex() == 2) {
+                            rowValue.put(Constants.PART_NUMBER, value);
+                        }
+
+                        if (cell.getColumnIndex() == 3) {
+                            rowValue.put(Constants.TYPE, value);
+                        }
+
+                        if (cell.getColumnIndex() == 4) {
+                            rowValue.put(Constants.NO_OF_CARTON, value);
+
+                            int noOfCartons = (int)cell.getNumericCellValue();
+                            totalNoOfCartons += noOfCartons;
+                        }
+
+                        if (cell.getColumnIndex() == 5) {
+                            rowValue.put(Constants.QTTY, value);
+                        }
                     }
+
                     selectedCartons.add(rowValue);
                 }
             }
@@ -441,10 +470,10 @@ public class MainActivity extends AppCompatActivity {
             txtName.setEnabled(true);
             txtName.setBackgroundTintList(yellowColors);
         } else {
-            ArrayList<String> rowValue = selectedCartons.get(0);
-            txtInspectorName.setText(rowValue.get(1));
+            HashMap<String, String> rowValue = selectedCartons.get(0);
+            txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
             txtInspectorNumber.setText("");
-            txtInspectorDate.setText(rowValue.get(0));
+            txtInspectorDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
 
             txtName.setBackgroundTintList(normalColors);
