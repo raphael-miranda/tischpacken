@@ -449,6 +449,10 @@ public class MainActivity extends AppCompatActivity {
                         if (cell.getColumnIndex() == 5) {
                             rowValue.put(Constants.QTTY, value);
                         }
+
+                        if (cell.getColumnIndex() == 13) {
+                            rowValue.put(Constants.CARTON_NUMBER, value);
+                        }
                     }
 
                     selectedCartons.add(rowValue);
@@ -472,7 +476,7 @@ public class MainActivity extends AppCompatActivity {
         } else {
             HashMap<String, String> rowValue = selectedCartons.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
-            txtInspectorNumber.setText("");
+            txtInspectorNumber.setText(rowValue.getOrDefault(Constants.CARTON_NUMBER, ""));
             txtInspectorDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
 

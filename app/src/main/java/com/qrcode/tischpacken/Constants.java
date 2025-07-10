@@ -16,5 +16,6 @@ public class Constants {
     public static final String TYPE = "type";
     public static final String NO_OF_CARTON = "no_of_carton";
     public static final String QTTY = "qtty";
+    public static final String CARTON_NUMBER = "carton_number";
 
 }
