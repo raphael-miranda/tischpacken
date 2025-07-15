@@ -243,7 +243,7 @@
                 android:text="@string/part_number"/>
 
             <TextView
-                android:layout_width="80dp"
+                android:layout_width="60dp"
                 android:textSize="13sp"
                 android:paddingVertical="10dp"
                 android:textColor="#000000"
@@ -251,7 +251,7 @@
                 android:text="@string/type" />
 
             <TextView
-                android:layout_width="100dp"
+                android:layout_width="80dp"
                 android:textSize="13sp"
                 android:paddingVertical="10dp"
                 android:textColor="#000000"
@@ -259,7 +259,7 @@
                 android:text="@string/no_of_carton" />
 
             <TextView
-                android:layout_width="120dp"
+                android:layout_width="100dp"
                 android:textSize="13sp"
                 android:paddingVertical="10dp"
                 android:textColor="#000000"

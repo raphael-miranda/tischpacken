@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">tischPacken</string>
 
-    <string name="title">Batch %1$d out of %2$d</string>
+    <string name="title">Inspector %1$d out of %2$d</string>
 
     <string name="name">Name: </string>
     <string name="inspector_name">Inspector Name</string>
@@ -24,6 +24,7 @@
     <string name="settings">Settings</string>
     <string name="update">Update</string>
     <string name="save">Save</string>
+    <string name="skip">Skip</string>
 
     <!-- Settings Dialog -->
     <string name="smb_server">SMB Server</string>

@@ -14,13 +14,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.Editable;
-import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -39,10 +37,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
@@ -71,7 +67,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -297,6 +292,11 @@ public class MainActivity extends AppCompatActivity {
             HashMap<String, String> carton = selectedCartons.get(i);
             String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
             if (partNumber.equals(partNr)) {
+                String strScanCounter = carton.getOrDefault(Constants.SCAN_COUNTER, "0");
+                int scanCounter = Integer.parseInt(strScanCounter);
+                scanCounter += 1;
+                carton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
+                selectedCartons.set(i, carton);
                 selectedPositions.add(i);
                 break;
             }
@@ -454,7 +454,7 @@ public class MainActivity extends AppCompatActivity {
                             rowValue.put(Constants.CARTON_NUMBER, value);
                         }
                     }
-
+                    rowValue.put(Constants.SCAN_COUNTER, "0");
                     selectedCartons.add(rowValue);
                 }
             }
