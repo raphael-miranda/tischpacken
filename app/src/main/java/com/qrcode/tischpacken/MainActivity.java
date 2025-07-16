@@ -61,11 +61,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -200,8 +203,14 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
+        readControlledParts();
+
         initNameInput();
         initContentsInput();
+    }
+
+    private void readControlledParts() {
+
     }
 
     private void initNameInput() {
@@ -415,7 +424,9 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                             case NUMERIC:
                                 if (DateUtil.isCellDateFormatted(cell)) {
-                                    value = cell.getDateCellValue().toString();
+                                    Date date = cell.getDateCellValue();
+                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
+                                    value = simpleDateFormat.format(date);
                                 } else {
                                     value = String.valueOf((int)cell.getNumericCellValue());
                                 }

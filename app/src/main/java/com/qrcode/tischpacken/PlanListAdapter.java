@@ -26,7 +26,6 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         TextView txtPartNumber;
         TextView txtType;
         TextView txtNoOfCarton;
-        TextView txtCartonNumber;
         TextView txtScanCounter;
 
         public PlanViewHolder(View itemView) {
@@ -34,7 +33,6 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
             txtPartNumber = itemView.findViewById(R.id.txtPartNumber);
             txtType = itemView.findViewById(R.id.txtType);
             txtNoOfCarton = itemView.findViewById(R.id.txtNoOfCarton);
-            txtCartonNumber = itemView.findViewById(R.id.txtCartonNumber);
             txtScanCounter = itemView.findViewById(R.id.txtScanCounter);
         }
     }
@@ -53,7 +51,6 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         holder.txtPartNumber.setText(localList.getOrDefault(Constants.PART_NUMBER, ""));
         holder.txtType.setText(localList.getOrDefault(Constants.TYPE, ""));
         holder.txtNoOfCarton.setText(localList.getOrDefault(Constants.NO_OF_CARTON, ""));
-        holder.txtCartonNumber.setText(localList.getOrDefault(Constants.CARTON_NUMBER, ""));
         holder.txtScanCounter.setText(localList.getOrDefault(Constants.SCAN_COUNTER, "0"));
 
         // Apply background if selected
