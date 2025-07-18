@@ -54,11 +54,14 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
@@ -78,11 +81,11 @@ public class MainActivity extends AppCompatActivity {
 
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
 
-    private TextView txtTitle;
+    private TextView txtInspectorCounter, txtTotalInspectors;
     private TextInputEditText txtName;
     private AppCompatButton btnNext;
 
-    private TextView txtInspectorName, txtInspectorNumber, txtInspectorDate, txtPlannedCartons;
+    private TextView txtInspectorName, txtInspectorNumber, txtInspectionDate, txtPlannedCartons;
 
     private RecyclerView planListView;
 
@@ -119,6 +122,8 @@ public class MainActivity extends AppCompatActivity {
 
     ArrayList<HashMap<String, String>> selectedCartons = new ArrayList<>();
 
+    ArrayList<String> controlledParts = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -130,13 +135,15 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        txtTitle = findViewById(R.id.txtTitle);
+        txtInspectorCounter = findViewById(R.id.txtInspectorCounter);
+        txtTotalInspectors = findViewById(R.id.txtTotalInspectors);
+
         txtName = findViewById(R.id.txtName);
         btnNext = findViewById(R.id.btnNext);
 
         txtInspectorName = findViewById(R.id.txtInspectorName);
         txtInspectorNumber = findViewById(R.id.txtInspectorNumber);
-        txtInspectorDate = findViewById(R.id.txtInspectorDate);
+        txtInspectionDate = findViewById(R.id.txtInspectionDate);
         txtPlannedCartons = findViewById(R.id.txtPlannedCartons);
 
         planListView = findViewById(R.id.planListView);
@@ -150,8 +157,6 @@ public class MainActivity extends AppCompatActivity {
         btnSettings = findViewById(R.id.btnSettings);
         btnUpdate = findViewById(R.id.btnUpdate);
         btnSave = findViewById(R.id.btnSave);
-
-        txtTitle.setText(getString(R.string.title, 0, 0));
 
         normalColors = txtName.getBackgroundTintList();
         if (txtName.getText().toString().isEmpty()) {
@@ -203,14 +208,58 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
+        showTotalInspectorsCount();
+
         readControlledParts();
 
         initNameInput();
         initContentsInput();
     }
 
-    private void readControlledParts() {
+    private void showTotalInspectorsCount() {
+        ArrayList<String> inspectorNames = new ArrayList<>();
 
+        try{
+            String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
+            FileInputStream fs = new FileInputStream(FilePath);
+            Workbook wb = new HSSFWorkbook(fs);
+
+            Sheet sheet = wb.getSheetAt(0);
+
+            for (Row row: sheet) {
+                if (row.getRowNum() == 0) continue;
+
+                HashMap<String, String> rowValue= new HashMap<>();
+                Cell inspectorCell = row.getCell(1);
+                String inspectorName = inspectorCell.getStringCellValue();
+
+                if (!inspectorNames.contains(inspectorName)) {
+                    inspectorNames.add(inspectorName);
+                }
+            }
+
+            wb.close();
+            fs.close();
+        }catch(Exception exp){
+            exp.printStackTrace();
+        }
+
+        txtTotalInspectors.setText(String.valueOf(inspectorNames.size()));
+    }
+
+    private void readControlledParts() {
+        try {
+            String filePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/controlledparts.txt";
+
+            BufferedReader reader = new BufferedReader(new FileReader(filePath));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                controlledParts.add(line);
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void initNameInput() {
@@ -239,7 +288,6 @@ public class MainActivity extends AppCompatActivity {
                 String strName = txtName.getText().toString();
                 if (strName.isEmpty()) {
                     txtName.setBackgroundTintList(yellowColors);
-                    btnNext.setEnabled(true);
                 } else {
                     checkNameFromExcel(strName);
                 }
@@ -307,6 +355,8 @@ public class MainActivity extends AppCompatActivity {
                 carton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
                 selectedCartons.set(i, carton);
                 selectedPositions.add(i);
+
+                verificationChecks(carton);
                 break;
             }
         }
@@ -318,6 +368,24 @@ public class MainActivity extends AppCompatActivity {
 
         PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions);
         planListView.setAdapter(planListAdapter);
+    }
+
+    private void verificationChecks(HashMap<String, String> carton) {
+        String cartonNr = carton.getOrDefault(Constants.CARTON_NUMBER, "");
+
+        if (!cartonNr.isEmpty()) {
+            
+        }
+
+        String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
+        if (partNumber != null && !partNumber.isEmpty()) {
+            if (controlledParts.contains(partNumber)) {
+                String type = carton.getOrDefault(Constants.TYPE, "");
+                if (type.equals("1st Check")) {
+                    showInformationDialog("", "Inspector Nr of 1st Inspector");
+                }
+            }
+        }
     }
 
     private boolean checkPermission() {
@@ -425,7 +493,7 @@ public class MainActivity extends AppCompatActivity {
                             case NUMERIC:
                                 if (DateUtil.isCellDateFormatted(cell)) {
                                     Date date = cell.getDateCellValue();
-                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
+                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
                                     value = simpleDateFormat.format(date);
                                 } else {
                                     value = String.valueOf((int)cell.getNumericCellValue());
@@ -479,7 +547,7 @@ public class MainActivity extends AppCompatActivity {
         if (selectedCartons.isEmpty()) {
             txtInspectorName.setText("");
             txtInspectorNumber.setText("");
-            txtInspectorDate.setText("");
+            txtInspectionDate.setText("");
             txtPlannedCartons.setText("");
 
             txtName.setEnabled(true);
@@ -488,7 +556,7 @@ public class MainActivity extends AppCompatActivity {
             HashMap<String, String> rowValue = selectedCartons.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
             txtInspectorNumber.setText(rowValue.getOrDefault(Constants.CARTON_NUMBER, ""));
-            txtInspectorDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
+            txtInspectionDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
 
             txtName.setBackgroundTintList(normalColors);
@@ -691,6 +759,7 @@ public class MainActivity extends AppCompatActivity {
                     message += "\nFailed: " + String.join(", ", failedFiles);
                 }
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                readControlledParts();
             });
         });
     }

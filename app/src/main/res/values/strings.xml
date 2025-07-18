@@ -1,12 +1,13 @@
 <resources>
     <string name="app_name">tischPacken</string>
 
-    <string name="title">Inspector %1$d out of %2$d</string>
+    <string name="inspector">Inspector </string>
+    <string name="out_of"> out of </string>
 
     <string name="name">Name: </string>
     <string name="inspector_name">Inspector Name</string>
     <string name="inspector_number">Inspector Number</string>
-    <string name="inspector_date">Inspector Date</string>
+    <string name="inspection_date">Inspection Date</string>
     <string name="planned_cartons">Planned Cartons</string>
     
     <string name="plan">PLAN</string>
