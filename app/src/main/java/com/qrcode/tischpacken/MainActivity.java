@@ -66,6 +66,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -332,7 +333,7 @@ public class MainActivity extends AppCompatActivity {
 
                     int qtty = Integer.parseInt(strQtty);
 
-                    checkPartNumber(partNr, qtty);
+                    checkPartNumber(partNr, qtty, strCartonNr);
                 }
 
                 if (txtScan.getText().toString().isEmpty()) {
@@ -342,27 +343,29 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void checkPartNumber(String partNr, int qtty) {
+    private void checkPartNumber(String partNr, int qtty, String cartonNr) {
 
+        boolean result = false;
         Set<Integer> selectedPositions = new HashSet<>();
+        HashMap<String, String> matchedCarton = new HashMap<>();
         for (int i = 0; i < selectedCartons.size(); i++) {
-            HashMap<String, String> carton = selectedCartons.get(i);
-            String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
+            matchedCarton = selectedCartons.get(i);
+            String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
             if (partNumber.equals(partNr)) {
-                String strScanCounter = carton.getOrDefault(Constants.SCAN_COUNTER, "0");
+                String strScanCounter = matchedCarton.getOrDefault(Constants.SCAN_COUNTER, "0");
                 int scanCounter = Integer.parseInt(strScanCounter);
                 scanCounter += 1;
-                carton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
-                selectedCartons.set(i, carton);
+                matchedCarton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
+                selectedCartons.set(i, matchedCarton);
                 selectedPositions.add(i);
-
-                verificationChecks(carton);
                 break;
             }
         }
         if (selectedPositions.isEmpty()) {
             txtScan.setBackgroundTintList(redColors);
+            showInformationDialog("Error", "Part number not found in plan.");
         } else {
+            result = verificationChecks(matchedCarton, cartonNr);
             txtScan.setBackgroundTintList(normalColors);
         }
 
@@ -370,11 +373,18 @@ public class MainActivity extends AppCompatActivity {
         planListView.setAdapter(planListAdapter);
     }
 
-    private void verificationChecks(HashMap<String, String> carton) {
-        String cartonNr = carton.getOrDefault(Constants.CARTON_NUMBER, "");
+    private boolean verificationChecks(HashMap<String, String> carton, String scannedCartonNr) {
+        String cartonNrs = carton.getOrDefault(Constants.CARTON_NUMBER, "");
 
-        if (!cartonNr.isEmpty()) {
-            
+        if (!cartonNrs.isEmpty()) {
+            String[] ctNrs = cartonNrs.split("\\s*\\s");
+            List<String> arrCartonNrs = Arrays.asList(ctNrs);
+
+            if (!arrCartonNrs.contains(scannedCartonNr)) {
+                showInformationDialog("Error", "Scanned carton number is not in the planned carton list.");
+                return false;
+            }
+
         }
 
         String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
@@ -383,9 +393,11 @@ public class MainActivity extends AppCompatActivity {
                 String type = carton.getOrDefault(Constants.TYPE, "");
                 if (type.equals("1st Check")) {
                     showInformationDialog("", "Inspector Nr of 1st Inspector");
+                    return false;
                 }
             }
         }
+        return true;
     }
 
     private boolean checkPermission() {
@@ -552,6 +564,7 @@ public class MainActivity extends AppCompatActivity {
 
             txtName.setEnabled(true);
             txtName.setBackgroundTintList(yellowColors);
+            showInformationDialog("Error", "Name not found in plan.");
         } else {
             HashMap<String, String> rowValue = selectedCartons.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
