@@ -20,6 +20,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -78,7 +79,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements PlanListAdapter.OnSkipButtonClickListener {
 
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
 
@@ -369,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
             txtScan.setBackgroundTintList(normalColors);
         }
 
-        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions);
+        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
         planListView.setAdapter(planListAdapter);
     }
 
@@ -541,7 +542,7 @@ public class MainActivity extends AppCompatActivity {
                             rowValue.put(Constants.QTTY, value);
                         }
 
-                        if (cell.getColumnIndex() == 13) {
+                        if (cell.getColumnIndex() == 12) {
                             rowValue.put(Constants.CARTON_NUMBER, value);
                         }
                     }
@@ -579,10 +580,43 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Set<Integer> selectedPositions = new HashSet<>();
-        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions);
+        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
         planListView.setAdapter(planListAdapter);
     }
 
+    @Override
+    public void onSkipButtonClick(int position, HashMap<String, String> item) {
+        showSkipDialog(position, item);
+    }
+
+    private void showSkipDialog(int position, HashMap<String, String> item) {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_skip, null);
+        builder.setView(dialogView)
+                .setCancelable(true);
+        AlertDialog dialog = builder.create();
+
+        NumberPicker skipCounterPicker = dialogView.findViewById(R.id.skipCounterPicker);
+        MaterialButton btnConfirm = dialogView.findViewById(R.id.btnConfirm);
+        MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
+
+        String strMaxNoOfCartons = item.getOrDefault(Constants.NO_OF_CARTON, "0");
+        int maxNoOfCartons = Integer.parseInt(strMaxNoOfCartons);
+
+        skipCounterPicker.setMinValue(1);
+        skipCounterPicker.setMaxValue(maxNoOfCartons);
+        skipCounterPicker.setWrapSelectorWheel(true);
+
+        btnConfirm.setOnClickListener(view -> {
+
+            dialog.dismiss();
+        });
+
+        btnCancel.setOnClickListener(view -> dialog.dismiss());
+
+        dialog.show();
+    }
 
     private abstract static class SimpleTextWatcher implements TextWatcher {
         @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -776,6 +810,8 @@ public class MainActivity extends AppCompatActivity {
             });
         });
     }
+
+
 
     private void showInformationDialog(String title, String message) {
         new MaterialAlertDialogBuilder(this)

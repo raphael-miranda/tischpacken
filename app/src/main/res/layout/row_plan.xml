@@ -53,6 +53,7 @@
         android:text="0" />
 
     <ImageButton
+        android:id="@+id/btnSkip"
         android:layout_width="50dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"

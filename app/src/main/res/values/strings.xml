@@ -36,4 +36,9 @@
     <string name="cancel">Cancel</string>
     <string name="test_connection">Test Connection</string>
 
+    <!-- Skip Dialog -->
+    <string name="skip_carton">Skip Carton</string>
+    <string name="skip_number_question">How many cartons to skip?</string>
+    <string name="confirm">Confirm</string>
+
 </resources>
