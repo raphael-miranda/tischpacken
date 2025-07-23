@@ -54,6 +54,7 @@ import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -92,7 +93,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private RecyclerView planListView;
 
     private TextInputEditText txtScan;
-    private AppCompatButton btnAdd;
+    private AppCompatButton btnClear;
     private ImageButton btnSettings, btnUpdate, btnSave;
 
     private ColorStateList normalColors;
@@ -122,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
     );
 
+    ArrayList<HashMap<String, String>> cartonsFromFile = new ArrayList<>();
     ArrayList<HashMap<String, String>> selectedCartons = new ArrayList<>();
 
     ArrayList<String> controlledParts = new ArrayList<>();
@@ -154,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         planListView.addItemDecoration(divider);
 
         txtScan = findViewById(R.id.txtScan);
-        btnAdd = findViewById(R.id.btnAdd);
+        btnClear = findViewById(R.id.btnClear);
 
         btnSettings = findViewById(R.id.btnSettings);
         btnUpdate = findViewById(R.id.btnUpdate);
@@ -198,6 +200,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             Toast.makeText(getApplication(),"You didn't provided all the permissions", Toast.LENGTH_SHORT).show();
         }
 
+        btnNext.setOnClickListener(view -> {
+
+        });
+
+        btnClear.setOnClickListener(view -> {
+            txtScan.setText("");
+        });
+
         btnSettings.setOnClickListener(view -> {
             showSettingsDialog();
         });
@@ -213,6 +223,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         showTotalInspectorsCount();
 
         readControlledParts();
+        readCartons();
 
         initNameInput();
         initContentsInput();
@@ -261,6 +272,69 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             reader.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void readCartons() {
+        cartonsFromFile = new ArrayList<>();
+
+        try{
+            String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/cartons.xlsx";
+            FileInputStream fs = new FileInputStream(FilePath);
+            Workbook wb = new XSSFWorkbook(fs);
+
+            Sheet sheet = wb.getSheetAt(0);
+
+            for (Row row: sheet) {
+                if (row.getRowNum() < 6) continue;
+
+                HashMap<String, String> rowValue= new HashMap<>();
+
+                for (Cell cell: row) {
+
+                    String value = "";
+
+                    switch (cell.getCellType()) {
+                        case STRING:
+                            value = cell.getStringCellValue();
+                            break;
+                        case NUMERIC:
+                            if (DateUtil.isCellDateFormatted(cell)) {
+                                Date date = cell.getDateCellValue();
+                                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
+                                value = simpleDateFormat.format(date);
+                            } else {
+                                value = String.valueOf((int)cell.getNumericCellValue());
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (cell.getColumnIndex() == 1) {
+                        rowValue.put(Constants.CARTON_NUMBER, value);
+                    }
+
+                    if (cell.getColumnIndex() == 2) {
+                        rowValue.put(Constants.CARTON_TYPE, value);
+                    }
+
+                    if (cell.getColumnIndex() == 8) {
+                        rowValue.put(Constants.PART_NUMBER, value);
+                    }
+
+                    if (cell.getColumnIndex() == 11) {
+                        rowValue.put(Constants.UNCHECKED, value);
+                    }
+
+                }
+                cartonsFromFile.add(rowValue);
+            }
+
+            wb.close();
+            fs.close();
+        } catch(Exception exp){
+            exp.printStackTrace();
         }
     }
 
@@ -332,19 +406,33 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     String strQtty = strCtNr.split(";")[3];
                     String strCartonNr = strCtNr.split(";")[0];
 
-                    int qtty = Integer.parseInt(strQtty);
+                    try {
+                        int qtty = Integer.parseInt(strQtty);
+                        HashMap<String, String> scannedCarton = new HashMap<>();
+                        scannedCarton.put(Constants.PART_NUMBER, partNr);
+                        scannedCarton.put(Constants.QTTY, strQtty);
+                        scannedCarton.put(Constants.CARTON_NUMBER, strCartonNr);
 
-                    checkPartNumber(partNr, qtty, strCartonNr);
+                        checkPartNumber(scannedCarton);
+                    } catch (NumberFormatException e) {
+                        txtScan.setBackgroundTintList(redColors);
+                        showInformationDialog("Error", "Invalid Qtty value");
+                    }
                 }
 
                 if (txtScan.getText().toString().isEmpty()) {
                     txtScan.setBackgroundTintList(yellowColors);
+                    btnClear.setEnabled(false);
+                } else {
+                    btnClear.setEnabled(true);
                 }
             }
         });
     }
 
-    private void checkPartNumber(String partNr, int qtty, String cartonNr) {
+    private void checkPartNumber(HashMap<String, String> scannedCarton) {
+
+        String partNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
         boolean result = false;
         Set<Integer> selectedPositions = new HashSet<>();
@@ -366,38 +454,80 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtScan.setBackgroundTintList(redColors);
             showInformationDialog("Error", "Part number not found in plan.");
         } else {
-            result = verificationChecks(matchedCarton, cartonNr);
-            txtScan.setBackgroundTintList(normalColors);
+            result = verificationChecks(matchedCarton, scannedCarton);
+            if (result) {
+                txtScan.setBackgroundTintList(normalColors);
+                txtScan.setText("");
+            } else {
+                txtScan.setBackgroundTintList(redColors);
+            }
         }
 
         PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
         planListView.setAdapter(planListAdapter);
     }
 
-    private boolean verificationChecks(HashMap<String, String> carton, String scannedCartonNr) {
-        String cartonNrs = carton.getOrDefault(Constants.CARTON_NUMBER, "");
+    private boolean verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton) {
+        String scannedCartonNr = scannedCarton.getOrDefault(Constants.CARTON_NUMBER, "");
+        String strScannedQtty = scannedCarton.getOrDefault(Constants.QTTY, "0");
+        int scannedQtty = Integer.parseInt(strScannedQtty);
+
+        String cartonNrs = matchedCarton.getOrDefault(Constants.CARTON_NUMBER, "");
+        String type = matchedCarton.getOrDefault(Constants.TYPE, "");
+        String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
         if (!cartonNrs.isEmpty()) {
             String[] ctNrs = cartonNrs.split("\\s*\\s");
             List<String> arrCartonNrs = Arrays.asList(ctNrs);
 
             if (!arrCartonNrs.contains(scannedCartonNr)) {
-                showInformationDialog("Error", "Scanned carton number is not in the planned carton list.");
+                showInformationDialog("Verification Failed", "Scanned carton number is not in the planned carton list.");
                 return false;
             }
 
         }
 
-        String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
+        // Controlled Part Check (controlledparts.txt)
         if (partNumber != null && !partNumber.isEmpty()) {
             if (controlledParts.contains(partNumber)) {
-                String type = carton.getOrDefault(Constants.TYPE, "");
                 if (type.equals("1st Check")) {
-                    showInformationDialog("", "Inspector Nr of 1st Inspector");
-                    return false;
+                    String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
+                    showInformationDialog("", "Inspector Nr: " + inspectorNr);
+
+                    if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
+                        showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                        return false;
+                    }
                 }
             }
         }
+
+        // Carton validation (cartons.xlsx)
+        if (type.equals("1st Check") || type.equals("Jig Only")) {
+            boolean isChecked = false;
+            for (HashMap<String, String> cartonFromFile : cartonsFromFile) {
+                if (scannedCartonNr.equals(cartonFromFile.getOrDefault(Constants.CARTON_NUMBER, ""))) {
+                    isChecked = true;
+                    String strQtty = cartonFromFile.getOrDefault(Constants.UNCHECKED, "0");
+                    try {
+                        int qtty = Integer.parseInt(strQtty);
+                        if (qtty != scannedQtty) {
+                            showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                            return false;
+                        }
+                    } catch (NumberFormatException e) {
+                        showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                        return false;
+                    }
+
+                }
+            }
+            if (!isChecked) {
+                showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -545,6 +675,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         if (cell.getColumnIndex() == 12) {
                             rowValue.put(Constants.CARTON_NUMBER, value);
                         }
+
+                        if (cell.getColumnIndex() == 13) {
+                            rowValue.put(Constants.INSPECTOR_NR, value);
+                        }
                     }
                     rowValue.put(Constants.SCAN_COUNTER, "0");
                     selectedCartons.add(rowValue);
@@ -569,7 +703,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         } else {
             HashMap<String, String> rowValue = selectedCartons.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
-            txtInspectorNumber.setText(rowValue.getOrDefault(Constants.CARTON_NUMBER, ""));
+            txtInspectorNumber.setText(rowValue.getOrDefault(Constants.INSPECTOR_NR, ""));
             txtInspectionDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
 
@@ -807,6 +941,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 }
                 Toast.makeText(this, message, Toast.LENGTH_LONG).show();
                 readControlledParts();
+                readCartons();
             });
         });
     }

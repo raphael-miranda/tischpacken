@@ -60,7 +60,7 @@
             android:layout_height="60dp"
             android:layout_weight="1"
             android:layout_marginStart="20dp"
-            android:text="@string/confirm"
+            android:text="@string/ok"
             android:textSize="18sp"
             android:textAllCaps="false" />
 

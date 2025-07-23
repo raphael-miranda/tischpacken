@@ -315,11 +315,11 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/btnAdd"
+            android:id="@+id/btnClear"
             android:layout_width="100dp"
             android:layout_height="50dp"
             android:layout_marginStart="4dp"
-            android:text="@string/add"
+            android:text="@string/clear"
             android:textAllCaps="false"
             android:textSize="16sp"
             android:enabled="false"/>
