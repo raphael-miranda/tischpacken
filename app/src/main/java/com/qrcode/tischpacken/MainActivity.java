@@ -130,6 +130,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     ArrayList<String> controlledParts = new ArrayList<>();
 
     ArrayList<HashMap<String, String>> scannedList = new ArrayList<>();
+    int totalNoOfCartons = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -205,7 +206,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         btnNext.setOnClickListener(view -> {
-
+            clearAll();
         });
 
         btnClear.setOnClickListener(view -> {
@@ -320,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     }
 
                     if (cell.getColumnIndex() == 1) {
-                        rowValue.put(Constants.CARTON_NUMBER, value);
+                        rowValue.put(Constants.CT_NR, value);
                     }
 
                     if (cell.getColumnIndex() == 2) {
@@ -409,7 +410,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
                 if(count == 4) {
                     String partNr = strCtNr.split(";")[1];
-                    String strDNr2 = strCtNr.split(";")[2];
+                    String strDNr = strCtNr.split(";")[2];
                     String strQtty = strCtNr.split(";")[3];
                     String strCartonNr = strCtNr.split(";")[0];
 
@@ -418,7 +419,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         HashMap<String, String> scannedCarton = new HashMap<>();
                         scannedCarton.put(Constants.PART_NUMBER, partNr);
                         scannedCarton.put(Constants.QTTY, strQtty);
-                        scannedCarton.put(Constants.CARTON_NUMBER, strCartonNr);
+                        scannedCarton.put(Constants.CT_NR, strCartonNr);
+                        scannedCarton.put(Constants.D_NR, strDNr);
 
                         checkPartNumber(scannedCarton);
                     } catch (NumberFormatException e) {
@@ -463,8 +465,18 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
                     selectedCartons.set(i, matchedCarton);
                     selectedPositions.add(i);
+
+                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
+                    String currentDate = simpleDateFormat.format(new Date());
+                    scannedCarton.put(Constants.SCAN_DATE, currentDate);
+                    scannedCarton.put(Constants.INSPECTOR, matchedCarton.getOrDefault(Constants.INSPECTOR, ""));
+
+                    scannedList.add(matchedCarton);
+
+
                     PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
                     planListView.setAdapter(planListAdapter);
+
                 } else {
                     txtScan.setBackgroundTintList(redColors);
                 }
@@ -476,14 +488,38 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtScan.setBackgroundTintList(redColors);
             showInformationDialog("Error", "Part number not found in plan.");
         }
+
+        checkNext();
+    }
+
+    private void checkNext() {
+        if (scannedList.size() >= totalNoOfCartons) {
+            btnNext.setEnabled(true);
+        } else {
+            btnNext.setEnabled(false);
+        }
+    }
+
+    private void clearAll() {
+        txtName.setText("");
+        txtScan.setText("");
+        txtInspectorName.setText("");
+        txtInspectorNumber.setText("");
+        txtInspectionDate.setText("");
+        txtPlannedCartons.setText("");
+
+        Set<Integer> selectedPositions = new HashSet<>();
+        selectedCartons.clear();
+        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
+        planListView.setAdapter(planListAdapter);
     }
 
     private boolean verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton) {
-        String scannedCartonNr = scannedCarton.getOrDefault(Constants.CARTON_NUMBER, "");
+        String scannedCartonNr = scannedCarton.getOrDefault(Constants.CT_NR, "");
         String strScannedQtty = scannedCarton.getOrDefault(Constants.QTTY, "0");
         int scannedQtty = Integer.parseInt(strScannedQtty);
 
-        String cartonNrs = matchedCarton.getOrDefault(Constants.CARTON_NUMBER, "");
+        String cartonNrs = matchedCarton.getOrDefault(Constants.CT_NR, "");
         String type = matchedCarton.getOrDefault(Constants.TYPE, "");
         String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
@@ -517,7 +553,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         if (type.equals("1st Check") || type.equals("Jig Only")) {
             boolean isChecked = false;
             for (HashMap<String, String> cartonFromFile : cartonsFromFile) {
-                if (scannedCartonNr.equals(cartonFromFile.getOrDefault(Constants.CARTON_NUMBER, ""))) {
+                if (scannedCartonNr.equals(cartonFromFile.getOrDefault(Constants.CT_NR, ""))) {
                     isChecked = true;
                     String strQtty = cartonFromFile.getOrDefault(Constants.UNCHECKED, "0");
                     try {
@@ -621,7 +657,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     public void checkNameFromExcel(String inspectorName) {
         selectedCartons = new ArrayList<>();
-        int totalNoOfCartons = 0;
         try{
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
             FileInputStream fs = new FileInputStream(FilePath);
@@ -684,7 +719,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         }
 
                         if (cell.getColumnIndex() == 12) {
-                            rowValue.put(Constants.CARTON_NUMBER, value);
+                            rowValue.put(Constants.CT_NR, value);
                         }
 
                         if (cell.getColumnIndex() == 13) {
@@ -757,6 +792,16 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         skipCounterPicker.setWrapSelectorWheel(true);
 
         btnConfirm.setOnClickListener(view -> {
+
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
+            String currentDate = simpleDateFormat.format(new Date());
+            item.put(Constants.SCAN_DATE, currentDate);
+            item.put(Constants.CT_NR, "");
+            item.put(Constants.D_NR, "");
+            item.put(Constants.SCAN_STATUS, "Skipped");
+            scannedList.add(item);
+
+            checkNext();
 
             dialog.dismiss();
         });

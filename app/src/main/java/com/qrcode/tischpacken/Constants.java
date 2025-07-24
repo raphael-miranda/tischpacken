@@ -16,9 +16,12 @@ public class Constants {
     public static final String TYPE = "type";
     public static final String NO_OF_CARTON = "no_of_carton";
     public static final String QTTY = "qtty";
-    public static final String CARTON_NUMBER = "carton_number";
+    public static final String CT_NR = "carton_number";
+    public static final String D_NR = "carton_number";
     public static final String INSPECTOR_NR = "inspector_nr";
     public static final String SCAN_COUNTER = "scan_counter";
+    public static final String SCAN_DATE = "scan_date";
+    public static final String SCAN_STATUS = "scan_date";
 
     public static final String CARTON_TYPE = "carton_type";
     public static final String UNCHECKED = "unchecked";
