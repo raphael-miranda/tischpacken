@@ -23,5 +23,7 @@ public class Constants {
     public static final String CARTON_TYPE = "carton_type";
     public static final String UNCHECKED = "unchecked";
 
+    public static final String FILE_DATE = "file_date";
+
 
 }

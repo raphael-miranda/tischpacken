@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.NumberPicker;
 import android.widget.TextView;
@@ -94,7 +95,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     private TextInputEditText txtScan;
     private AppCompatButton btnClear;
-    private ImageButton btnSettings, btnUpdate, btnSave;
+    private ImageButton btnSettings, btnUpdate, btnViewRecord, btnSave;
 
     private ColorStateList normalColors;
     private final ColorStateList yellowColors = new ColorStateList(
@@ -128,6 +129,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     ArrayList<String> controlledParts = new ArrayList<>();
 
+    ArrayList<HashMap<String, String>> scannedList = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -160,6 +163,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         btnSettings = findViewById(R.id.btnSettings);
         btnUpdate = findViewById(R.id.btnUpdate);
+        btnViewRecord = findViewById(R.id.btnViewRecord);
         btnSave = findViewById(R.id.btnSave);
 
         normalColors = txtName.getBackgroundTintList();
@@ -214,6 +218,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         btnUpdate.setOnClickListener(view -> {
             downloadPlanFromSMB();
+        });
+
+        btnViewRecord.setOnClickListener(view -> {
+
         });
 
         btnSave.setOnClickListener(view -> {
@@ -341,10 +349,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private void initNameInput() {
 
         txtName.requestFocus();
-//        if (!isManual) {
-//            txtName.setShowSoftInputOnFocus(false);
-//            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-//        }
+
+        // disable keyboard
+        txtName.setShowSoftInputOnFocus(false);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+
         txtName.post(() -> txtName.setSelection(txtName.getText().length()));
 
         txtName.setOnKeyListener((view, keyCode, event) -> {
@@ -374,13 +383,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private void initContentsInput() {
         txtScan.setText("");
         txtScan.setEnabled(false);
-//        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
-//        boolean isManual = sharedPreferences.getBoolean(IS_MANUAL, false);
 
-//        if (!isManual) {
-//            txtScan.setShowSoftInputOnFocus(false);
-//            getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-//        }
+        // disable keybaord
+        txtScan.setShowSoftInputOnFocus(false);
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+
         txtScan.post(() -> txtScan.setSelection(txtScan.getText().length()));
 
         txtScan.setOnKeyListener((view, keyCode, event) -> {
@@ -437,34 +444,38 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         boolean result = false;
         Set<Integer> selectedPositions = new HashSet<>();
         HashMap<String, String> matchedCarton = new HashMap<>();
+
+        boolean isPartNumberFounded = false;
         for (int i = 0; i < selectedCartons.size(); i++) {
             matchedCarton = selectedCartons.get(i);
             String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
             if (partNumber.equals(partNr)) {
+                isPartNumberFounded = true;
                 String strScanCounter = matchedCarton.getOrDefault(Constants.SCAN_COUNTER, "0");
                 int scanCounter = Integer.parseInt(strScanCounter);
                 scanCounter += 1;
                 matchedCarton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
-                selectedCartons.set(i, matchedCarton);
-                selectedPositions.add(i);
+
+                result = verificationChecks(matchedCarton, scannedCarton);
+                if (result) {
+                    txtScan.setBackgroundTintList(normalColors);
+                    txtScan.setText("");
+
+                    selectedCartons.set(i, matchedCarton);
+                    selectedPositions.add(i);
+                    PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
+                    planListView.setAdapter(planListAdapter);
+                } else {
+                    txtScan.setBackgroundTintList(redColors);
+                }
+
                 break;
             }
         }
-        if (selectedPositions.isEmpty()) {
+        if (!isPartNumberFounded) {
             txtScan.setBackgroundTintList(redColors);
             showInformationDialog("Error", "Part number not found in plan.");
-        } else {
-            result = verificationChecks(matchedCarton, scannedCarton);
-            if (result) {
-                txtScan.setBackgroundTintList(normalColors);
-                txtScan.setText("");
-            } else {
-                txtScan.setBackgroundTintList(redColors);
-            }
         }
-
-        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
-        planListView.setAdapter(planListAdapter);
     }
 
     private boolean verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton) {
@@ -489,16 +500,16 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         // Controlled Part Check (controlledparts.txt)
         if (partNumber != null && !partNumber.isEmpty()) {
-            if (controlledParts.contains(partNumber)) {
-                if (type.equals("1st Check")) {
-                    String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
-                    showInformationDialog("", "Inspector Nr: " + inspectorNr);
+            if (controlledParts.contains(partNumber) && type.equals("1st Check")) {
 
-                    if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
-                        showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
-                        return false;
-                    }
+                String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
+                showInformationDialog("", "Inspector Nr: " + inspectorNr);
+
+                if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
+                    showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                    return false;
                 }
+
             }
         }
 
@@ -711,6 +722,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setEnabled(false);
             txtScan.setEnabled(true);
             txtScan.requestFocus();
+            scannedList = new ArrayList<>();
         }
 
         Set<Integer> selectedPositions = new HashSet<>();
@@ -736,10 +748,12 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
 
         String strMaxNoOfCartons = item.getOrDefault(Constants.NO_OF_CARTON, "0");
+        String strScanCounter = item.getOrDefault(Constants.SCAN_COUNTER, "0");
         int maxNoOfCartons = Integer.parseInt(strMaxNoOfCartons);
+        int scanCounter = Integer.parseInt(strScanCounter);
 
         skipCounterPicker.setMinValue(1);
-        skipCounterPicker.setMaxValue(maxNoOfCartons);
+        skipCounterPicker.setMaxValue(maxNoOfCartons - scanCounter);
         skipCounterPicker.setWrapSelectorWheel(true);
 
         btnConfirm.setOnClickListener(view -> {
@@ -946,7 +960,100 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
     }
 
+    private void saveReport(ArrayList<List<String>> result) {
 
+        try {
+            String fileName = getFileName();
+            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+
+                File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
+
+                if (!file.exists()) {
+                    createExcelFile(file);
+                }
+
+                FileInputStream fis = new FileInputStream(file);
+                Workbook workbook = new XSSFWorkbook(fis);
+                Sheet sheet = workbook.getSheetAt(0); // or getSheet("SheetName")
+
+                for (List<String> rowData : result) {
+                    int lastRowNum = sheet.getLastRowNum();
+                    Row newRow = sheet.createRow(lastRowNum + 1);
+
+                    for (int i = 0; i < rowData.size(); i++) {
+                        Cell cell = newRow.createCell(i);
+                        cell.setCellValue(rowData.get(i));
+                    }
+                }
+
+                fis.close(); // important
+
+                FileOutputStream fos = new FileOutputStream(file);
+                workbook.write(fos);
+                workbook.close();
+                fos.close();
+
+                Log.d("Excel", "Data appended successfully.");
+            } else {
+                System.out.println("External storage not available.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("Excel", "Error appending data: " + e.getMessage());
+        }
+    }
+
+
+    private void createExcelFile(File file) {
+        try {
+            if (!file.exists()) {
+                // Create a new workbook and sheet
+                Workbook workbook = new XSSFWorkbook();
+                Sheet sheet = workbook.createSheet("Sheet1");
+
+                // (Optional) Create header row
+                Row header = sheet.createRow(0);
+                header.createCell(0).setCellValue("Planned Date");
+                header.createCell(1).setCellValue("Inspector Name");
+                header.createCell(2).setCellValue("Carton Nr");
+                header.createCell(3).setCellValue("Part Nr");
+                header.createCell(4).setCellValue("D-Nr");
+                header.createCell(5).setCellValue("Qtty");
+                header.createCell(6).setCellValue("Comments");
+
+                // Save to file
+                FileOutputStream fos = new FileOutputStream(file);
+                workbook.write(fos);
+                fos.close();
+                workbook.close();
+
+                Log.d("Excel", "Excel file created.");
+            } else {
+                Log.d("Excel", "Excel file already exists.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("Excel", "Failed to create Excel file: " + e.getMessage());
+        }
+    }
+
+    private String getFileName() {
+        SimpleDateFormat format = new SimpleDateFormat("ddMMyyyy", Locale.getDefault());
+        String strDate = format.format(new Date());
+
+        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+        String fileDate = sharedPreferences.getString(Constants.FILE_DATE, "");
+
+        if (fileDate.isEmpty() || !strDate.equals(fileDate)) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putString(Constants.FILE_DATE, strDate);
+            editor.apply();
+        }
+
+        String fileName = String.format(Locale.getDefault(), "tischPacken_%s.xlsx", strDate);
+
+        return fileName;
+    }
 
     private void showInformationDialog(String title, String message) {
         new MaterialAlertDialogBuilder(this)

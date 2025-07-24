@@ -337,7 +337,8 @@
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:background="@drawable/settings"
-            android:contentDescription="@string/settings" />
+            android:contentDescription="@string/settings"
+            android:layout_marginHorizontal="12dp"/>
 
         <ImageButton
             android:id="@+id/btnUpdate"
@@ -345,14 +346,23 @@
             android:layout_height="50dp"
             android:background="@drawable/update"
             android:contentDescription="@string/update"
-            android:layout_marginHorizontal="30dp"/>
+            android:layout_marginHorizontal="12dp"/>
+
+        <ImageButton
+            android:id="@+id/btnViewRecord"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="@drawable/book"
+            android:contentDescription="@string/view"
+            android:layout_marginHorizontal="12dp"/>
 
         <ImageButton
             android:id="@+id/btnSave"
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:background="@drawable/save"
-            android:contentDescription="@string/save" />
+            android:contentDescription="@string/save"
+            android:layout_marginHorizontal="12dp" />
     </LinearLayout>
 
 </LinearLayout>
