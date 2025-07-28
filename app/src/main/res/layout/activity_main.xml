@@ -270,6 +270,15 @@
                 android:layout_height="wrap_content"
                 android:text="@string/no_of_carton" />
 
+            <TextView
+                android:layout_width="80dp"
+                android:textSize="13sp"
+                android:paddingVertical="10dp"
+                android:textColor="#000000"
+                android:layout_height="wrap_content"
+                android:textAlignment="center"
+                android:text="Skipped" />
+
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView

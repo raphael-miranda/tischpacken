@@ -37,9 +37,13 @@
         android:textAlignment="center"/>
 
     <TextView
+        android:id="@+id/txtSkipped"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="1"/>
+        android:layout_weight="1"
+        android:textColor="#00dd00"
+        android:textAlignment="center"
+        android:textSize="12sp"/>
 
     <TextView
         android:id="@+id/txtScanCounter"
@@ -57,7 +61,7 @@
         android:layout_width="50dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="4dp"
-        android:src="@drawable/skip"
+        android:src="@drawable/skip_image_selector"
         android:textAllCaps="false"/>
 
 </LinearLayout>

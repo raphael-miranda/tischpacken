@@ -1,6 +1,5 @@
 package com.qrcode.tischpacken;
 
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,17 +7,10 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.button.MaterialButton;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.textfield.TextInputEditText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
 
 
 
@@ -29,15 +21,19 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         void onSkipButtonClick(int position, HashMap<String, String> item);
     }
 
-    ArrayList<HashMap<String, String>> list;
-    private Set<Integer> selectedPositions = new HashSet<>();
+    private ArrayList<HashMap<String, String>> list;
+    private ArrayList<HashMap<String, String>> scannedList;
+    private int selectedPosition = -1;
     private OnSkipButtonClickListener listener;
 
+
     public PlanListAdapter(ArrayList<HashMap<String, String>> list,
-                           Set<Integer> selectedPositions,
+                           int selectedPosition,
+                           ArrayList<HashMap<String, String>> scannedList,
                            OnSkipButtonClickListener listener) {
         this.list = list;
-        this.selectedPositions = selectedPositions;
+        this.scannedList = scannedList;
+        this.selectedPosition = selectedPosition;
         this.listener = listener;
     }
 
@@ -45,6 +41,7 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         TextView txtPartNumber;
         TextView txtType;
         TextView txtNoOfCarton;
+        TextView txtSkipped;
         TextView txtScanCounter;
         ImageButton btnSkip;
 
@@ -53,6 +50,7 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
             txtPartNumber = itemView.findViewById(R.id.txtPartNumber);
             txtType = itemView.findViewById(R.id.txtType);
             txtNoOfCarton = itemView.findViewById(R.id.txtNoOfCarton);
+            txtSkipped = itemView.findViewById(R.id.txtSkipped);
             txtScanCounter = itemView.findViewById(R.id.txtScanCounter);
             btnSkip = itemView.findViewById(R.id.btnSkip);
         }
@@ -69,16 +67,45 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
     public void onBindViewHolder(PlanViewHolder holder, int position) {
         HashMap<String, String> localList = list.get(position);
 
-        holder.txtPartNumber.setText(localList.getOrDefault(Constants.PART_NUMBER, ""));
+        String partNr = localList.getOrDefault(Constants.PART_NUMBER, "");
+        String strNoOfCarton = localList.getOrDefault(Constants.NO_OF_CARTON, "0");
+        int noOfCarton = Integer.parseInt(strNoOfCarton);
+        holder.txtPartNumber.setText(partNr);
         holder.txtType.setText(localList.getOrDefault(Constants.TYPE, ""));
-        holder.txtNoOfCarton.setText(localList.getOrDefault(Constants.NO_OF_CARTON, ""));
-        holder.txtScanCounter.setText(localList.getOrDefault(Constants.SCAN_COUNTER, "0"));
+        holder.txtNoOfCarton.setText(strNoOfCarton);
+
+        int scannedCounter = 0;
+        int skippedCounter = 0;
+        for (HashMap<String, String> scannedCarton : scannedList) {
+            String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
+            if (scannedPartNr.equals(partNr)) {
+                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                if (skipped > 0) {
+                    skippedCounter += skipped;
+                } else {
+                    scannedCounter += 1;
+                }
+            }
+        }
+        holder.txtScanCounter.setText(String.valueOf(scannedCounter));
+        if (skippedCounter > 0) {
+            holder.txtSkipped.setText(String.valueOf(skippedCounter));
+        }
 
         // Apply background if selected
-        if (selectedPositions.contains(position)) {
-            holder.itemView.setBackgroundResource(R.color.green);
+        if (noOfCarton <= (skippedCounter + scannedCounter)) {
+            holder.itemView.setBackgroundResource(R.color.green_light);
+            if (selectedPosition == position) {
+                holder.itemView.setBackgroundResource(R.color.green);
+            }
+            holder.btnSkip.setEnabled(false);
         } else {
-            holder.itemView.setBackgroundColor(Color.WHITE);
+            if (selectedPosition == position) {
+                holder.itemView.setBackgroundResource(R.color.green);
+            } else {
+                holder.itemView.setBackgroundColor(Color.WHITE);
+            }
+            holder.btnSkip.setEnabled(true);
         }
 
         holder.btnSkip.setOnClickListener(view -> {
@@ -92,7 +119,5 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
     public int getItemCount() {
         return list.size();
     }
-
-
 
 }

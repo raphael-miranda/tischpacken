@@ -125,12 +125,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     );
 
     ArrayList<HashMap<String, String>> cartonsFromFile = new ArrayList<>();
-    ArrayList<HashMap<String, String>> selectedCartons = new ArrayList<>();
+    ArrayList<HashMap<String, String>> cartonsFromPlan = new ArrayList<>();
 
     ArrayList<String> controlledParts = new ArrayList<>();
 
     ArrayList<HashMap<String, String>> scannedList = new ArrayList<>();
     int totalNoOfCartons = 0;
+
+    PlanListAdapter planListAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -206,6 +208,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         btnNext.setOnClickListener(view -> {
+            saveRecords();
             clearAll();
         });
 
@@ -222,7 +225,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         btnViewRecord.setOnClickListener(view -> {
-
+            Intent intent = new Intent(this, RecordViewActivity.class);
+            startActivity(intent);
         });
 
         btnSave.setOnClickListener(view -> {
@@ -444,27 +448,23 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String partNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
         boolean result = false;
-        Set<Integer> selectedPositions = new HashSet<>();
+        int selectedPosition = -1;
         HashMap<String, String> matchedCarton = new HashMap<>();
 
         boolean isPartNumberFounded = false;
-        for (int i = 0; i < selectedCartons.size(); i++) {
-            matchedCarton = selectedCartons.get(i);
+        for (int i = 0; i < cartonsFromPlan.size(); i++) {
+            matchedCarton = cartonsFromPlan.get(i);
             String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
             if (partNumber.equals(partNr)) {
                 isPartNumberFounded = true;
-                String strScanCounter = matchedCarton.getOrDefault(Constants.SCAN_COUNTER, "0");
-                int scanCounter = Integer.parseInt(strScanCounter);
-                scanCounter += 1;
-                matchedCarton.put(Constants.SCAN_COUNTER, String.valueOf(scanCounter));
 
                 result = verificationChecks(matchedCarton, scannedCarton);
                 if (result) {
                     txtScan.setBackgroundTintList(normalColors);
                     txtScan.setText("");
 
-                    selectedCartons.set(i, matchedCarton);
-                    selectedPositions.add(i);
+                    cartonsFromPlan.set(i, matchedCarton);
+                    selectedPosition = i;
 
                     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
                     String currentDate = simpleDateFormat.format(new Date());
@@ -473,8 +473,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
                     scannedList.add(matchedCarton);
 
-
-                    PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
+                    planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition, scannedList, this);
                     planListView.setAdapter(planListAdapter);
 
                 } else {
@@ -508,9 +507,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         txtInspectionDate.setText("");
         txtPlannedCartons.setText("");
 
-        Set<Integer> selectedPositions = new HashSet<>();
-        selectedCartons.clear();
-        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
+        cartonsFromPlan.clear();
+        scannedList.clear();
+
+        planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
     }
 
@@ -656,7 +656,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
 
     public void checkNameFromExcel(String inspectorName) {
-        selectedCartons = new ArrayList<>();
+        cartonsFromPlan = new ArrayList<>();
         try{
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
             FileInputStream fs = new FileInputStream(FilePath);
@@ -726,8 +726,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             rowValue.put(Constants.INSPECTOR_NR, value);
                         }
                     }
-                    rowValue.put(Constants.SCAN_COUNTER, "0");
-                    selectedCartons.add(rowValue);
+//                    rowValue.put(Constants.SCAN_COUNTER, "0");
+                    cartonsFromPlan.add(rowValue);
                 }
             }
 
@@ -737,7 +737,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             exp.printStackTrace();
         }
 
-        if (selectedCartons.isEmpty()) {
+        if (cartonsFromPlan.isEmpty()) {
             txtInspectorName.setText("");
             txtInspectorNumber.setText("");
             txtInspectionDate.setText("");
@@ -747,7 +747,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setBackgroundTintList(yellowColors);
             showInformationDialog("Error", "Name not found in plan.");
         } else {
-            HashMap<String, String> rowValue = selectedCartons.get(0);
+            HashMap<String, String> rowValue = cartonsFromPlan.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
             txtInspectorNumber.setText(rowValue.getOrDefault(Constants.INSPECTOR_NR, ""));
             txtInspectionDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
@@ -760,8 +760,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             scannedList = new ArrayList<>();
         }
 
-        Set<Integer> selectedPositions = new HashSet<>();
-        PlanListAdapter planListAdapter = new PlanListAdapter(selectedCartons, selectedPositions, this);
+        planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
     }
 
@@ -771,6 +770,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     }
 
     private void showSkipDialog(int position, HashMap<String, String> item) {
+
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_skip, null);
@@ -783,23 +783,45 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
 
         String strMaxNoOfCartons = item.getOrDefault(Constants.NO_OF_CARTON, "0");
-        String strScanCounter = item.getOrDefault(Constants.SCAN_COUNTER, "0");
         int maxNoOfCartons = Integer.parseInt(strMaxNoOfCartons);
-        int scanCounter = Integer.parseInt(strScanCounter);
+
+        String selectedPartNr = item.getOrDefault(Constants.PART_NUMBER, "");
+        int skippedCounter = 0, scannedCounter = 0;
+        for (HashMap<String, String> scannedCarton : scannedList) {
+            String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
+            if (scannedPartNr.equals(selectedPartNr)) {
+                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                if (skipped > 0) {
+                    skippedCounter += skipped;
+                } else {
+                    scannedCounter += 1;
+                }
+            }
+        }
 
         skipCounterPicker.setMinValue(1);
-        skipCounterPicker.setMaxValue(maxNoOfCartons - scanCounter);
+        skipCounterPicker.setMaxValue(maxNoOfCartons - scannedCounter - skippedCounter);
         skipCounterPicker.setWrapSelectorWheel(true);
 
         btnConfirm.setOnClickListener(view -> {
 
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
             String currentDate = simpleDateFormat.format(new Date());
-            item.put(Constants.SCAN_DATE, currentDate);
-            item.put(Constants.CT_NR, "");
-            item.put(Constants.D_NR, "");
-            item.put(Constants.SCAN_STATUS, "Skipped");
-            scannedList.add(item);
+
+            HashMap<String, String> skippedItem = new HashMap<>();
+
+            skippedItem.put(Constants.SCAN_DATE, currentDate);
+            skippedItem.put(Constants.INSPECTOR, item.getOrDefault(Constants.INSPECTOR, ""));
+            skippedItem.put(Constants.CT_NR, "");
+            skippedItem.put(Constants.PART_NUMBER, item.getOrDefault(Constants.PART_NUMBER, ""));
+            skippedItem.put(Constants.D_NR, "");
+            skippedItem.put(Constants.QTTY, item.getOrDefault(Constants.QTTY, ""));
+            skippedItem.put(Constants.SCAN_STATUS, "Skipped");
+            skippedItem.put(Constants.SKIP_COUNTER, String.valueOf(skipCounterPicker.getValue()));
+            scannedList.add(skippedItem);
+
+            planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
+            planListView.setAdapter(planListAdapter);
 
             checkNext();
 
@@ -1005,7 +1027,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
     }
 
-    private void saveReport(ArrayList<List<String>> result) {
+    private void saveRecords() {
 
         try {
             String fileName = getFileName();
@@ -1021,14 +1043,31 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 Workbook workbook = new XSSFWorkbook(fis);
                 Sheet sheet = workbook.getSheetAt(0); // or getSheet("SheetName")
 
-                for (List<String> rowData : result) {
+                for (HashMap<String, String> rowData : scannedList) {
                     int lastRowNum = sheet.getLastRowNum();
                     Row newRow = sheet.createRow(lastRowNum + 1);
 
-                    for (int i = 0; i < rowData.size(); i++) {
-                        Cell cell = newRow.createCell(i);
-                        cell.setCellValue(rowData.get(i));
-                    }
+                    Cell dateCell = newRow.createCell(0);
+                    dateCell.setCellValue(rowData.getOrDefault(Constants.SCAN_DATE, ""));
+
+                    Cell inspectorCell = newRow.createCell(1);
+                    inspectorCell.setCellValue(rowData.getOrDefault(Constants.INSPECTOR, ""));
+
+                    Cell ctNrCell = newRow.createCell(2);
+                    ctNrCell.setCellValue(rowData.getOrDefault(Constants.CT_NR, ""));
+
+                    Cell partNrCell = newRow.createCell(3);
+                    partNrCell.setCellValue(rowData.getOrDefault(Constants.PART_NUMBER, ""));
+
+                    Cell dNrCell = newRow.createCell(4);
+                    dNrCell.setCellValue(rowData.getOrDefault(Constants.D_NR, ""));
+
+                    Cell qttyCell = newRow.createCell(5);
+                    qttyCell.setCellValue(rowData.getOrDefault(Constants.QTTY, ""));
+
+                    Cell commentsCell = newRow.createCell(6);
+                    commentsCell.setCellValue(rowData.getOrDefault(Constants.SCAN_STATUS, ""));
+
                 }
 
                 fis.close(); // important
