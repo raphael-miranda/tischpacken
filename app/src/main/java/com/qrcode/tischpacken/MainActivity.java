@@ -64,7 +64,6 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
@@ -73,11 +72,9 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -230,7 +227,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         btnSave.setOnClickListener(view -> {
-
+            saveRecords();
         });
 
         showTotalInspectorsCount();
@@ -466,12 +463,18 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     cartonsFromPlan.set(i, matchedCarton);
                     selectedPosition = i;
 
+                    HashMap<String, String> cartonToSave = new HashMap<>();
+
                     SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
                     String currentDate = simpleDateFormat.format(new Date());
-                    scannedCarton.put(Constants.SCAN_DATE, currentDate);
-                    scannedCarton.put(Constants.INSPECTOR, matchedCarton.getOrDefault(Constants.INSPECTOR, ""));
+                    cartonToSave.put(Constants.SCAN_DATE, currentDate);
+                    cartonToSave.put(Constants.INSPECTOR, matchedCarton.getOrDefault(Constants.INSPECTOR, ""));
+                    cartonToSave.put(Constants.CT_NR, scannedCarton.getOrDefault(Constants.CT_NR, ""));
+                    cartonToSave.put(Constants.PART_NUMBER, scannedCarton.getOrDefault(Constants.PART_NUMBER, ""));
+                    cartonToSave.put(Constants.D_NR, scannedCarton.getOrDefault(Constants.D_NR, ""));
+                    cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
 
-                    scannedList.add(matchedCarton);
+                    scannedList.add(cartonToSave);
 
                     planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition, scannedList, this);
                     planListView.setAdapter(planListAdapter);
