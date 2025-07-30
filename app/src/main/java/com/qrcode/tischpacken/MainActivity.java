@@ -16,6 +16,7 @@ import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.util.Patterns;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -227,7 +228,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         btnSave.setOnClickListener(view -> {
-            saveRecords();
+            uploadRecords();
         });
 
         showTotalInspectorsCount();
@@ -237,6 +238,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         initNameInput();
         initContentsInput();
+
+        checkUploadAvailable();
     }
 
     private void showTotalInspectorsCount() {
@@ -495,10 +498,27 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     }
 
     private void checkNext() {
+        Log.d("========", "scanned " + scannedList.size() + " / " + totalNoOfCartons);
         if (scannedList.size() >= totalNoOfCartons) {
             btnNext.setEnabled(true);
         } else {
-            btnNext.setEnabled(false);
+            int totalCounter = 0;
+            for (HashMap<String, String> scannedCarton : scannedList) {
+                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                if (skipped > 0) {
+                    totalCounter += skipped;
+                } else {
+                    totalCounter += 1;
+                }
+            }
+
+            Log.d("========", "scanned " + totalCounter + " / " + totalNoOfCartons);
+
+            if (totalCounter >= totalNoOfCartons) {
+                btnNext.setEnabled(true);
+            } else {
+                btnNext.setEnabled(false);
+            }
         }
     }
 
@@ -522,6 +542,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String strScannedQtty = scannedCarton.getOrDefault(Constants.QTTY, "0");
         int scannedQtty = Integer.parseInt(strScannedQtty);
 
+        String inspector = matchedCarton.getOrDefault(Constants.INSPECTOR, "");
         String cartonNrs = matchedCarton.getOrDefault(Constants.CT_NR, "");
         String type = matchedCarton.getOrDefault(Constants.TYPE, "");
         String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
@@ -535,6 +556,12 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 return false;
             }
 
+        }
+
+        // check duplicated carton
+        if (isExistedCarton(inspector, scannedCartonNr)) {
+            showInformationDialog("Verification Failed", "Carton number already scanned.");
+            return false;
         }
 
         // Controlled Part Check (controlledparts.txt)
@@ -579,6 +606,50 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         return true;
+    }
+
+    private boolean isExistedCarton(String scannedInspector, String scannedCartonNr) {
+
+        if (scannedInspector.isEmpty() || scannedCartonNr.isEmpty()) {
+            return false;
+        }
+
+        boolean result = false;
+
+        try {
+            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+
+                File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + getFileName());
+
+                FileInputStream fis = new FileInputStream(file);
+
+                Workbook workbook = new XSSFWorkbook(fis);
+
+                Sheet sheet = workbook.getSheetAt(0);
+
+                for (Row row: sheet) {
+                    if (row.getRowNum() == 0) continue;
+
+                    Cell inspectorCell = row.getCell(1);
+                    String inspector = inspectorCell.getStringCellValue();
+                    Cell ctNrCell = row.getCell(2);
+                    String ctNr = ctNrCell.getStringCellValue();
+
+                    if (inspector.equals(scannedInspector) && scannedCartonNr.equals(ctNr)) {
+                        result = true;
+                    }
+
+                }
+
+                workbook.close();
+                fis.close();
+            }
+        }catch(Exception exp){
+            exp.printStackTrace();
+            Toast.makeText(this, "Sorry User don't have view report", Toast.LENGTH_SHORT).show();
+        }
+
+        return result;
     }
 
     private boolean checkPermission() {
@@ -1121,6 +1192,123 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         } catch (Exception e) {
             e.printStackTrace();
             Log.e("Excel", "Failed to create Excel file: " + e.getMessage());
+        }
+    }
+
+    private void uploadRecords() {
+        SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
+
+        String host = sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, "");
+        String username = sharedPreferences.getString(Constants.SMB_USERNAME, "");
+        String password = sharedPreferences.getString(Constants.SMB_PASSWORD, "");
+        String sharedFolder = sharedPreferences.getString(Constants.SMB_SHARED_FOLDER, "");
+
+
+        if (host.isEmpty() || !isValidUrl(host)) {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Error")
+                    .setMessage("Please set valid server address in Settings. Do you want to create new one without uploading?")
+                    .setNegativeButton("Yes", (dialogInterface, i) -> {
+                        // set scanned number to 0
+                        dialogInterface.dismiss();
+                    })
+                    .setPositiveButton("No", (dialogInterface, i) -> {
+                        dialogInterface.dismiss();
+                    })
+                    .show();
+        } else {
+            uploadFileToSMB(host, sharedFolder, "", username, password);
+        }
+    }
+
+    private boolean isValidUrl(String url) {
+        return url != null && Patterns.WEB_URL.matcher(url).matches();
+    }
+
+    public void uploadFileToSMB(String hostname, String shareName, String domain,
+                                String username, String password) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+
+        executor.execute(() -> {
+            try {
+                // SMB upload logic here
+                SMBClient client = new SMBClient();
+                try (Connection connection = client.connect(hostname)) {
+                    AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), "");
+                    com.hierynomus.smbj.session.Session session = connection.authenticate(ac);
+                    DiskShare share = (DiskShare) session.connectShare(shareName);
+                    if (!share.folderExists("records")) {
+                        share.mkdir("records");
+                    }
+
+                    String fileName = getFileName();
+                    String remotePath = "records/" + fileName;
+                    File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
+
+                    FileInputStream fis = new FileInputStream(file);
+                    OutputStream os = share.openFile(remotePath,
+                            EnumSet.of(AccessMask.GENERIC_WRITE),
+                            null,
+                            SMB2ShareAccess.ALL,
+                            SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                            null).getOutputStream();
+
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = fis.read(buffer)) != -1) {
+                        os.write(buffer, 0, bytesRead);
+                    }
+
+                    os.close();
+                    fis.close();
+                    share.close();
+                    session.close();
+                }
+
+                // Notify success on main thread
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Upload successful", Toast.LENGTH_SHORT).show();
+                    removeCurrentFile();
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Upload failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void removeCurrentFile() {
+
+        File dir = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName);
+
+        if (dir.exists() && dir.isDirectory()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile() && file.getName().startsWith("tischPacken_") && file.getName().endsWith(".xlsx")) {
+                        boolean deleted = file.delete();
+                        Log.d("FileDelete", file.getName() + (deleted ? " deleted." : " failed to delete."));
+                    }
+                }
+            }
+        }
+
+        checkUploadAvailable();
+    }
+
+    private void checkUploadAvailable() {
+        String fileName = getFileName();
+
+        File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
+
+        if (file.exists()) {
+            btnSave.setEnabled(true);
+        } else {
+            btnSave.setEnabled(false);
         }
     }
 

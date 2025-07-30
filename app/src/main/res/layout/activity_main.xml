@@ -271,12 +271,13 @@
                 android:text="@string/no_of_carton" />
 
             <TextView
-                android:layout_width="80dp"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:textSize="13sp"
                 android:paddingVertical="10dp"
                 android:textColor="#000000"
                 android:layout_height="wrap_content"
-                android:textAlignment="center"
+                android:textAlignment="textEnd"
                 android:text="Skipped" />
 
         </LinearLayout>
