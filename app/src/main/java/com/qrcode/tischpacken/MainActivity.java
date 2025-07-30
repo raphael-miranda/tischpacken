@@ -228,6 +228,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         btnSave.setOnClickListener(view -> {
+            saveRecords();
             uploadRecords();
         });
 
@@ -546,6 +547,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String cartonNrs = matchedCarton.getOrDefault(Constants.CT_NR, "");
         String type = matchedCarton.getOrDefault(Constants.TYPE, "");
         String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
+        String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
 
         if (!cartonNrs.isEmpty()) {
             String[] ctNrs = cartonNrs.split("\\s*\\s");
@@ -564,18 +566,21 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             return false;
         }
 
+        // Visual Only plan
+        if (type.equals("Visual Only")) {
+            showInformationDialog("", "1st inspector: " + inspectorNr);
+        }
+
         // Controlled Part Check (controlledparts.txt)
         if (partNumber != null && !partNumber.isEmpty()) {
             if (controlledParts.contains(partNumber) && type.equals("1st Check")) {
 
-                String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
                 showInformationDialog("", "Inspector Nr: " + inspectorNr);
 
                 if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
                     showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
                     return false;
                 }
-
             }
         }
 
