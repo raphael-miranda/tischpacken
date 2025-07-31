@@ -361,7 +361,7 @@
             android:id="@+id/btnViewRecord"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:background="@drawable/book"
+            android:background="@drawable/book_image_selector"
             android:contentDescription="@string/view"
             android:layout_marginHorizontal="12dp"/>
 
@@ -369,7 +369,7 @@
             android:id="@+id/btnSave"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:background="@drawable/save"
+            android:background="@drawable/save_image_selector"
             android:contentDescription="@string/save"
             android:layout_marginHorizontal="12dp" />
     </LinearLayout>

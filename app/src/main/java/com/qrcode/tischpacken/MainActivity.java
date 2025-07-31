@@ -208,6 +208,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         btnNext.setOnClickListener(view -> {
             saveRecords();
             clearAll();
+            txtName.requestFocus();
         });
 
         btnClear.setOnClickListener(view -> {
@@ -228,7 +229,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         btnSave.setOnClickListener(view -> {
-            saveRecords();
             uploadRecords();
         });
 
@@ -569,6 +569,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         // Visual Only plan
         if (type.equals("Visual Only")) {
             showInformationDialog("", "1st inspector: " + inspectorNr);
+            if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
+                showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                return false;
+            }
         }
 
         // Controlled Part Check (controlledparts.txt)
@@ -1243,12 +1247,12 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), "");
                     com.hierynomus.smbj.session.Session session = connection.authenticate(ac);
                     DiskShare share = (DiskShare) session.connectShare(shareName);
-                    if (!share.folderExists("records")) {
-                        share.mkdir("records");
+                    if (!share.folderExists("tischPacken/records")) {
+                        share.mkdir("tischPacken/records");
                     }
 
                     String fileName = getFileName();
-                    String remotePath = "records/" + fileName;
+                    String remotePath = "tischPacken/records/" + fileName;
                     File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
 
                     FileInputStream fis = new FileInputStream(file);
