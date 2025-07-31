@@ -1,6 +1,7 @@
 package com.qrcode.tischpacken;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -21,6 +22,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.NumberPicker;
 import android.widget.TextView;
@@ -449,7 +451,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String partNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
         boolean result = false;
-        int selectedPosition = -1;
+        final int[] selectedPosition = {-1};
         HashMap<String, String> matchedCarton = new HashMap<>();
 
         boolean isPartNumberFounded = false;
@@ -459,33 +461,39 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             if (partNumber.equals(partNr)) {
                 isPartNumberFounded = true;
 
-                result = verificationChecks(matchedCarton, scannedCarton);
-                if (result) {
-                    txtScan.setBackgroundTintList(normalColors);
-                    txtScan.setText("");
 
-                    cartonsFromPlan.set(i, matchedCarton);
-                    selectedPosition = i;
+                HashMap<String, String> finalMatchedCarton = matchedCarton;
+                int finalI = i;
+                verificationChecks(matchedCarton, scannedCarton, new VerificationCallback() {
+                    @Override
+                    public void onResult(boolean verified) {
+                        if (verified) {
+                            txtScan.setBackgroundTintList(normalColors);
+                            txtScan.setText("");
 
-                    HashMap<String, String> cartonToSave = new HashMap<>();
+                            cartonsFromPlan.set(finalI, finalMatchedCarton);
+                            selectedPosition[0] = finalI;
 
-                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
-                    String currentDate = simpleDateFormat.format(new Date());
-                    cartonToSave.put(Constants.SCAN_DATE, currentDate);
-                    cartonToSave.put(Constants.INSPECTOR, matchedCarton.getOrDefault(Constants.INSPECTOR, ""));
-                    cartonToSave.put(Constants.CT_NR, scannedCarton.getOrDefault(Constants.CT_NR, ""));
-                    cartonToSave.put(Constants.PART_NUMBER, scannedCarton.getOrDefault(Constants.PART_NUMBER, ""));
-                    cartonToSave.put(Constants.D_NR, scannedCarton.getOrDefault(Constants.D_NR, ""));
-                    cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
+                            HashMap<String, String> cartonToSave = new HashMap<>();
 
-                    scannedList.add(cartonToSave);
+                            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("M/d/yyyy", Locale.getDefault());
+                            String currentDate = simpleDateFormat.format(new Date());
+                            cartonToSave.put(Constants.SCAN_DATE, currentDate);
+                            cartonToSave.put(Constants.INSPECTOR, finalMatchedCarton.getOrDefault(Constants.INSPECTOR, ""));
+                            cartonToSave.put(Constants.CT_NR, scannedCarton.getOrDefault(Constants.CT_NR, ""));
+                            cartonToSave.put(Constants.PART_NUMBER, scannedCarton.getOrDefault(Constants.PART_NUMBER, ""));
+                            cartonToSave.put(Constants.D_NR, scannedCarton.getOrDefault(Constants.D_NR, ""));
+                            cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
 
-                    planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition, scannedList, this);
-                    planListView.setAdapter(planListAdapter);
+                            scannedList.add(cartonToSave);
 
-                } else {
-                    txtScan.setBackgroundTintList(redColors);
-                }
+                            planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition[0], scannedList, MainActivity.this);
+                            planListView.setAdapter(planListAdapter);
+                        } else {
+                            txtScan.setBackgroundTintList(redColors);
+                        }
+                    }
+                });
 
                 break;
             }
@@ -538,7 +546,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         planListView.setAdapter(planListAdapter);
     }
 
-    private boolean verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton) {
+    public interface VerificationCallback {
+        void onResult(boolean verified);
+    }
+
+    private void verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton, VerificationCallback callback) {
         String scannedCartonNr = scannedCarton.getOrDefault(Constants.CT_NR, "");
         String strScannedQtty = scannedCarton.getOrDefault(Constants.QTTY, "0");
         int scannedQtty = Integer.parseInt(strScannedQtty);
@@ -555,7 +567,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
             if (!arrCartonNrs.contains(scannedCartonNr)) {
                 showInformationDialog("Verification Failed", "Scanned carton number is not in the planned carton list.");
-                return false;
+                callback.onResult(false);
+                return;
             }
 
         }
@@ -563,29 +576,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         // check duplicated carton
         if (isExistedCarton(inspector, scannedCartonNr)) {
             showInformationDialog("Verification Failed", "Carton number already scanned.");
-            return false;
-        }
-
-        // Visual Only plan
-        if (type.equals("Visual Only")) {
-            showInformationDialog("", "1st inspector: " + inspectorNr);
-            if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
-                showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
-                return false;
-            }
-        }
-
-        // Controlled Part Check (controlledparts.txt)
-        if (partNumber != null && !partNumber.isEmpty()) {
-            if (controlledParts.contains(partNumber) && type.equals("1st Check")) {
-
-                showInformationDialog("", "Inspector Nr: " + inspectorNr);
-
-                if (inspectorNr.isEmpty() || inspectorNr.equals("0")) {
-                    showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
-                    return false;
-                }
-            }
+            callback.onResult(false);
+            return;
         }
 
         // Carton validation (cartons.xlsx)
@@ -599,22 +591,76 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         int qtty = Integer.parseInt(strQtty);
                         if (qtty != scannedQtty) {
                             showInformationDialog("Verification Failed", "The carton is not unchecked.");
-                            return false;
+                            callback.onResult(false);
+                            return;
                         }
                     } catch (NumberFormatException e) {
                         showInformationDialog("Verification Failed", "The carton is not unchecked.");
-                        return false;
+                        callback.onResult(false);
+                        return;
                     }
 
                 }
             }
             if (!isChecked) {
                 showInformationDialog("Verification Failed", "The carton is not unchecked.");
-                return false;
+                callback.onResult(false);
+                return;
             }
         }
 
-        return true;
+        // Controlled Part Check (controlledparts.txt)
+        if (partNumber != null && !partNumber.isEmpty()) {
+            if (controlledParts.contains(partNumber) && type.equals("1st Check")) {
+
+                showFirstInspectorPrompt(new InputCallback() {
+                    @Override
+                    public void onResult(String userInput) {
+                        if (!userInput.equals(inspectorNr)) {
+                            showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                            callback.onResult(false);
+                        } else {
+                            callback.onResult(true);
+                        }
+                    }
+                });
+            }
+        }
+
+        // Visual Only plan
+        if (type.equals("Visual Only")) {
+            showFirstInspectorPrompt(new InputCallback() {
+                @Override
+                public void onResult(String userInput) {
+                    if (!userInput.equals(inspectorNr)) {
+                        showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                        callback.onResult(false);
+                    } else {
+                        callback.onResult(true);
+                    }
+                }
+            });
+        }
+
+        callback.onResult(true);
+    }
+
+    public interface InputCallback {
+        void onResult(String userInput);
+    }
+    private void showFirstInspectorPrompt(InputCallback callback) {
+        EditText input = new EditText(this);
+        new AlertDialog.Builder(this)
+                .setTitle("1st Inspector")
+                .setView(input)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        String scanInspectorNr = input.getText().toString();
+                        callback.onResult(scanInspectorNr);
+                    }
+                })
+                .show();
     }
 
     private boolean isExistedCarton(String scannedInspector, String scannedCartonNr) {
@@ -829,6 +875,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setEnabled(true);
             txtName.setBackgroundTintList(yellowColors);
             showInformationDialog("Error", "Name not found in plan.");
+            txtName.setText("");
         } else {
             HashMap<String, String> rowValue = cartonsFromPlan.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
