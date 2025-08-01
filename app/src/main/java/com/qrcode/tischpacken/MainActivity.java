@@ -22,8 +22,10 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -86,6 +88,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
 
     private TextView txtInspectorCounter, txtTotalInspectors;
+    int inspectorCounter = 0;
     private TextInputEditText txtName;
     private AppCompatButton btnNext;
 
@@ -146,6 +149,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
 
         txtInspectorCounter = findViewById(R.id.txtInspectorCounter);
+        txtInspectorCounter.setText(String.valueOf(inspectorCounter));
         txtTotalInspectors = findViewById(R.id.txtTotalInspectors);
 
         txtName = findViewById(R.id.txtName);
@@ -210,7 +214,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         btnNext.setOnClickListener(view -> {
             saveRecords();
             clearAll();
+            txtName.setEnabled(true);
             txtName.requestFocus();
+            txtScan.setEnabled(false);
         });
 
         btnClear.setOnClickListener(view -> {
@@ -532,8 +538,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     }
 
     private void clearAll() {
-        txtName.setText("");
+
         txtScan.setText("");
+        txtName.setText("");
         txtInspectorName.setText("");
         txtInspectorNumber.setText("");
         txtInspectionDate.setText("");
@@ -575,7 +582,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         // check duplicated carton
         if (isExistedCarton(inspector, scannedCartonNr)) {
-            showInformationDialog("Verification Failed", "Carton number already scanned.");
+            showInformationDialog("Verification Failed", "Double scan!");
             callback.onResult(false);
             return;
         }
@@ -610,14 +617,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         // Controlled Part Check (controlledparts.txt)
-        if (partNumber != null && !partNumber.isEmpty()) {
-            if (controlledParts.contains(partNumber) && type.equals("1st Check")) {
 
+        if (type.equals("1st Check") && controlledParts.contains(partNumber)) {
+            if (partNumber != null && !partNumber.isEmpty()) {
                 showFirstInspectorPrompt(new InputCallback() {
                     @Override
                     public void onResult(String userInput) {
-                        if (!userInput.equals(inspectorNr)) {
-                            showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                        if (userInput.equals(inspectorNr)) {
+                            showInformationDialog("Verification Failed", "Inspector cannot inspect own carton");
                             callback.onResult(false);
                         } else {
                             callback.onResult(true);
@@ -625,48 +632,101 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     }
                 });
             }
-        }
-
-        // Visual Only plan
-        if (type.equals("Visual Only")) {
+        } else if (type.equals("Visual Only")) { // Visual Only plan
             showFirstInspectorPrompt(new InputCallback() {
                 @Override
                 public void onResult(String userInput) {
-                    if (!userInput.equals(inspectorNr)) {
-                        showInformationDialog("Verification Failed", "Carton is not \"JO\" inspected");
+                    if (userInput.equals(inspectorNr)) {
+                        showInformationDialog("Verification Failed", "Inspector cannot inspect own carton");
                         callback.onResult(false);
                     } else {
                         callback.onResult(true);
                     }
                 }
             });
+        } else {
+            callback.onResult(true);
         }
-
-        callback.onResult(true);
     }
 
     public interface InputCallback {
         void onResult(String userInput);
     }
+//    private void showFirstInspectorPrompt(InputCallback callback) {
+//        EditText input = new EditText(this);
+//        new AlertDialog.Builder(this)
+//                .setTitle("1st Inspector")
+//                .setView(input)
+//                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+//                    @Override
+//                    public void onClick(DialogInterface dialogInterface, int i) {
+//                        String scanInspectorNr = input.getText().toString();
+//                        callback.onResult(scanInspectorNr);
+//                    }
+//                })
+//                .show();
+//    }
+
+
     private void showFirstInspectorPrompt(InputCallback callback) {
         EditText input = new EditText(this);
-        new AlertDialog.Builder(this)
+        input.setHint("Enter inspector number");
+        input.setPadding(40, 30, 40, 30);
+        LinearLayout container = new LinearLayout(this);
+        container.setPadding(50, 40, 50, 10); // outer padding for dialog
+        container.addView(input, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("1st Inspector")
-                .setView(input)
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        String scanInspectorNr = input.getText().toString();
-                        callback.onResult(scanInspectorNr);
-                    }
-                })
-                .show();
+                .setView(container)
+                .setPositiveButton("OK", null) // We'll override this later
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            Button okButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            okButton.setEnabled(false); // Initially disable the OK button
+
+            // Enable OK button only if input is not empty
+            input.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    okButton.setEnabled(s.toString().trim().length() > 0);
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {}
+            });
+
+            // Manually handle click to check again before dismiss
+            okButton.setOnClickListener(v -> {
+                String scanInspectorNr = input.getText().toString().trim();
+                if (!scanInspectorNr.isEmpty()) {
+                    callback.onResult(scanInspectorNr);
+                    dialog.dismiss();
+                }
+            });
+        });
+
+        dialog.show();
     }
 
     private boolean isExistedCarton(String scannedInspector, String scannedCartonNr) {
 
         if (scannedInspector.isEmpty() || scannedCartonNr.isEmpty()) {
             return false;
+        }
+
+        for (HashMap<String, String> carton: scannedList) {
+            String oldCtNr = carton.getOrDefault(Constants.CT_NR, "");
+            if (scannedCartonNr.equals(oldCtNr)) {
+                return true;
+            }
         }
 
         boolean result = false;
@@ -699,7 +759,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 workbook.close();
                 fis.close();
             }
-        }catch(Exception exp){
+        } catch(Exception exp) {
             exp.printStackTrace();
             Toast.makeText(this, "Sorry User don't have view report", Toast.LENGTH_SHORT).show();
         }
@@ -877,6 +937,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             showInformationDialog("Error", "Name not found in plan.");
             txtName.setText("");
         } else {
+            inspectorCounter += 1;
+            txtInspectorCounter.setText(String.valueOf(inspectorCounter));
+
             HashMap<String, String> rowValue = cartonsFromPlan.get(0);
             txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
             txtInspectorNumber.setText(rowValue.getOrDefault(Constants.INSPECTOR_NR, ""));
