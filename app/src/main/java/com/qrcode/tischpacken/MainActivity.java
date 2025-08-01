@@ -1,7 +1,6 @@
 package com.qrcode.tischpacken;
 
 import android.Manifest;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -54,6 +53,7 @@ import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.share.DiskShare;
 
+import org.apache.commons.collections4.functors.ExceptionPredicate;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -212,7 +212,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         btnNext.setOnClickListener(view -> {
-            saveRecords();
             clearAll();
             txtName.setEnabled(true);
             txtName.requestFocus();
@@ -322,9 +321,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             break;
                         case NUMERIC:
                             if (DateUtil.isCellDateFormatted(cell)) {
-                                Date date = cell.getDateCellValue();
-                                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
-                                value = simpleDateFormat.format(date);
+                                try {
+                                    Date date = cell.getDateCellValue();
+                                    SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
+                                    value = simpleDateFormat.format(date);
+                                } catch (Exception e) {
+                                    value = "";
+                                }
                             } else {
                                 value = String.valueOf((int)cell.getNumericCellValue());
                             }
@@ -492,6 +495,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
 
                             scannedList.add(cartonToSave);
+                            saveRecord(cartonToSave);
 
                             planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition[0], scannedList, MainActivity.this);
                             planListView.setAdapter(planListAdapter);
@@ -652,20 +656,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     public interface InputCallback {
         void onResult(String userInput);
     }
-//    private void showFirstInspectorPrompt(InputCallback callback) {
-//        EditText input = new EditText(this);
-//        new AlertDialog.Builder(this)
-//                .setTitle("1st Inspector")
-//                .setView(input)
-//                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-//                    @Override
-//                    public void onClick(DialogInterface dialogInterface, int i) {
-//                        String scanInspectorNr = input.getText().toString();
-//                        callback.onResult(scanInspectorNr);
-//                    }
-//                })
-//                .show();
-//    }
 
 
     private void showFirstInspectorPrompt(InputCallback callback) {
@@ -915,7 +905,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             rowValue.put(Constants.INSPECTOR_NR, value);
                         }
                     }
-//                    rowValue.put(Constants.SCAN_COUNTER, "0");
                     cartonsFromPlan.add(rowValue);
                 }
             }
@@ -950,11 +939,100 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setEnabled(false);
             txtScan.setEnabled(true);
             txtScan.requestFocus();
-            scannedList = new ArrayList<>();
+            scannedList = readSavedScanList(inspectorName);
         }
 
         planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
+    }
+
+    private ArrayList<HashMap<String, String>> readSavedScanList(String inspectorName) {
+        ArrayList<HashMap<String, String>> result = new ArrayList<>();
+        try {
+            if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+
+                File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + getFileName());
+
+                FileInputStream fis = new FileInputStream(file);
+
+                Workbook workbook = new XSSFWorkbook(fis);
+
+                Sheet sheet = workbook.getSheetAt(0);
+
+                for (Row row: sheet) {
+                    if (row.getRowNum() == 0) continue;
+
+                    Cell inspectorCell = row.getCell(1);
+                    String inspector = inspectorCell.getStringCellValue();
+
+                    if (inspector.equals(inspectorName)) {
+                        HashMap<String, String> savedCarton = new HashMap<>();
+                        savedCarton.put(Constants.INSPECTOR, inspector);
+
+                        for (Cell cell: row) {
+
+                            String value = "";
+
+                            switch (cell.getCellType()) {
+                                case STRING:
+                                    value = cell.getStringCellValue();
+                                    break;
+                                case NUMERIC:
+                                    if (DateUtil.isCellDateFormatted(cell)) {
+                                        try {
+                                            Date date = cell.getDateCellValue();
+                                            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault());
+                                            value = simpleDateFormat.format(date);
+                                        } catch (Exception e) {
+                                            value = "";
+                                        }
+                                    } else {
+                                        value = String.valueOf((int) cell.getNumericCellValue());
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+
+                            if (cell.getColumnIndex() == 2) {
+                                savedCarton.put(Constants.CT_NR, value);
+                            }
+
+                            if (cell.getColumnIndex() == 3) {
+                                savedCarton.put(Constants.PART_NUMBER, value);
+                            }
+
+                            if (cell.getColumnIndex() == 4) {
+                                savedCarton.put(Constants.D_NR, value);
+                            }
+
+                            if (cell.getColumnIndex() == 5) {
+                                savedCarton.put(Constants.QTTY, value);
+                            }
+
+                            if (cell.getColumnIndex() == 6) {
+                                savedCarton.put(Constants.SCAN_STATUS, value);
+                            }
+
+                            if (cell.getColumnIndex() == 7) {
+                                savedCarton.put(Constants.SKIP_COUNTER, value);
+                            }
+
+                        }
+
+                        result.add(savedCarton);
+                    }
+                }
+
+                workbook.close();
+                fis.close();
+            }
+        }catch(Exception exp){
+            exp.printStackTrace();
+            Toast.makeText(this, "Sorry User don't have view report", Toast.LENGTH_SHORT).show();
+        }
+
+        return result;
     }
 
     @Override
@@ -1012,6 +1090,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             skippedItem.put(Constants.SCAN_STATUS, "Skipped");
             skippedItem.put(Constants.SKIP_COUNTER, String.valueOf(skipCounterPicker.getValue()));
             scannedList.add(skippedItem);
+            saveRecord(skippedItem);
 
             planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
             planListView.setAdapter(planListAdapter);
@@ -1220,7 +1299,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         });
     }
 
-    private void saveRecords() {
+    private void saveRecord(HashMap<String, String> record) {
 
         try {
             String fileName = getFileName();
@@ -1236,32 +1315,33 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 Workbook workbook = new XSSFWorkbook(fis);
                 Sheet sheet = workbook.getSheetAt(0); // or getSheet("SheetName")
 
-                for (HashMap<String, String> rowData : scannedList) {
-                    int lastRowNum = sheet.getLastRowNum();
-                    Row newRow = sheet.createRow(lastRowNum + 1);
+                int lastRowNum = sheet.getLastRowNum();
+                Row newRow = sheet.createRow(lastRowNum + 1);
 
-                    Cell dateCell = newRow.createCell(0);
-                    dateCell.setCellValue(rowData.getOrDefault(Constants.SCAN_DATE, ""));
+                Cell dateCell = newRow.createCell(0);
+                dateCell.setCellValue(record.getOrDefault(Constants.SCAN_DATE, ""));
 
-                    Cell inspectorCell = newRow.createCell(1);
-                    inspectorCell.setCellValue(rowData.getOrDefault(Constants.INSPECTOR, ""));
+                Cell inspectorCell = newRow.createCell(1);
+                inspectorCell.setCellValue(record.getOrDefault(Constants.INSPECTOR, ""));
 
-                    Cell ctNrCell = newRow.createCell(2);
-                    ctNrCell.setCellValue(rowData.getOrDefault(Constants.CT_NR, ""));
+                Cell ctNrCell = newRow.createCell(2);
+                ctNrCell.setCellValue(record.getOrDefault(Constants.CT_NR, ""));
 
-                    Cell partNrCell = newRow.createCell(3);
-                    partNrCell.setCellValue(rowData.getOrDefault(Constants.PART_NUMBER, ""));
+                Cell partNrCell = newRow.createCell(3);
+                partNrCell.setCellValue(record.getOrDefault(Constants.PART_NUMBER, ""));
 
-                    Cell dNrCell = newRow.createCell(4);
-                    dNrCell.setCellValue(rowData.getOrDefault(Constants.D_NR, ""));
+                Cell dNrCell = newRow.createCell(4);
+                dNrCell.setCellValue(record.getOrDefault(Constants.D_NR, ""));
 
-                    Cell qttyCell = newRow.createCell(5);
-                    qttyCell.setCellValue(rowData.getOrDefault(Constants.QTTY, ""));
+                Cell qttyCell = newRow.createCell(5);
+                qttyCell.setCellValue(record.getOrDefault(Constants.QTTY, ""));
 
-                    Cell commentsCell = newRow.createCell(6);
-                    commentsCell.setCellValue(rowData.getOrDefault(Constants.SCAN_STATUS, ""));
+                Cell commentsCell = newRow.createCell(6);
+                commentsCell.setCellValue(record.getOrDefault(Constants.SCAN_STATUS, ""));
 
-                }
+                Cell skippedCounterCell = newRow.createCell(7);
+                skippedCounterCell.setCellValue(record.getOrDefault(Constants.SKIP_COUNTER, ""));
+
 
                 fis.close(); // important
 
@@ -1278,6 +1358,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             e.printStackTrace();
             Log.e("Excel", "Error appending data: " + e.getMessage());
         }
+        checkUploadAvailable();
     }
 
 
