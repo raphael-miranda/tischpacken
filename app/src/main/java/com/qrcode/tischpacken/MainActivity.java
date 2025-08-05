@@ -53,7 +53,6 @@ import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.share.DiskShare;
 
-import org.apache.commons.collections4.functors.ExceptionPredicate;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -751,7 +750,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
         } catch(Exception exp) {
             exp.printStackTrace();
-            Toast.makeText(this, "Sorry User don't have view report", Toast.LENGTH_SHORT).show();
         }
 
         return result;
@@ -837,9 +835,12 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     public void checkNameFromExcel(String inspectorName) {
         cartonsFromPlan = new ArrayList<>();
         try{
+            totalNoOfCartons = 0;
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
             FileInputStream fs = new FileInputStream(FilePath);
             Workbook wb = new HSSFWorkbook(fs);
+
+            ArrayList<String> arrPartNrs = new ArrayList<>();
 
             Sheet sheet = wb.getSheetAt(0);
 
@@ -848,8 +849,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
                 HashMap<String, String> rowValue= new HashMap<>();
                 Cell inspectorCell = row.getCell(1);
+                String inspector = inspectorCell.getStringCellValue();
+                Cell partNrCell = row.getCell(2);
+                String partNr = partNrCell.getStringCellValue();
 
-                if (inspectorCell.getStringCellValue().equals(inspectorName)) {
+                if (inspector.equals(inspectorName) && !arrPartNrs.contains(partNr)) {
+                    arrPartNrs.add(partNr);
+
                     for (Cell cell: row) {
 
                         String value = "";
@@ -940,6 +946,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtScan.setEnabled(true);
             txtScan.requestFocus();
             scannedList = readSavedScanList(inspectorName);
+            checkNext();
         }
 
         planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
@@ -1029,7 +1036,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
         }catch(Exception exp){
             exp.printStackTrace();
-            Toast.makeText(this, "Sorry User don't have view report", Toast.LENGTH_SHORT).show();
         }
 
         return result;
