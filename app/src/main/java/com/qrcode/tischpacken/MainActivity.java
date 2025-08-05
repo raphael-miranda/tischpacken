@@ -91,13 +91,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private TextInputEditText txtName;
     private AppCompatButton btnNext;
 
-    private TextView txtInspectorName, txtInspectorNumber, txtInspectionDate, txtPlannedCartons;
+    private TextView txtInspectorNumber, txtInspectionDate, txtPlannedCartons;
 
     private RecyclerView planListView;
 
     private TextInputEditText txtScan;
     private AppCompatButton btnClear;
-    private ImageButton btnSettings, btnUpdate, btnViewRecord, btnSave;
+    private ImageButton btnSettings;
 
     private ColorStateList normalColors;
     private final ColorStateList yellowColors = new ColorStateList(
@@ -154,7 +154,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         txtName = findViewById(R.id.txtName);
         btnNext = findViewById(R.id.btnNext);
 
-        txtInspectorName = findViewById(R.id.txtInspectorName);
         txtInspectorNumber = findViewById(R.id.txtInspectorNumber);
         txtInspectionDate = findViewById(R.id.txtInspectionDate);
         txtPlannedCartons = findViewById(R.id.txtPlannedCartons);
@@ -168,9 +167,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         btnClear = findViewById(R.id.btnClear);
 
         btnSettings = findViewById(R.id.btnSettings);
-        btnUpdate = findViewById(R.id.btnUpdate);
-        btnViewRecord = findViewById(R.id.btnViewRecord);
-        btnSave = findViewById(R.id.btnSave);
 
         normalColors = txtName.getBackgroundTintList();
         if (txtName.getText().toString().isEmpty()) {
@@ -225,19 +221,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             showSettingsDialog();
         });
 
-        btnUpdate.setOnClickListener(view -> {
-            downloadPlanFromSMB();
-        });
-
-        btnViewRecord.setOnClickListener(view -> {
-            Intent intent = new Intent(this, RecordViewActivity.class);
-            startActivity(intent);
-        });
-
-        btnSave.setOnClickListener(view -> {
-            uploadRecords();
-        });
-
         showTotalInspectorsCount();
 
         readControlledParts();
@@ -246,7 +229,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         initNameInput();
         initContentsInput();
 
-        checkUploadAvailable();
     }
 
     private void showTotalInspectorsCount() {
@@ -544,7 +526,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         txtScan.setText("");
         txtName.setText("");
-        txtInspectorName.setText("");
         txtInspectorNumber.setText("");
         txtInspectionDate.setText("");
         txtPlannedCartons.setText("");
@@ -922,7 +903,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         }
 
         if (cartonsFromPlan.isEmpty()) {
-            txtInspectorName.setText("");
             txtInspectorNumber.setText("");
             txtInspectionDate.setText("");
             txtPlannedCartons.setText("");
@@ -936,7 +916,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtInspectorCounter.setText(String.valueOf(inspectorCounter));
 
             HashMap<String, String> rowValue = cartonsFromPlan.get(0);
-            txtInspectorName.setText(rowValue.getOrDefault(Constants.INSPECTOR, ""));
             txtInspectorNumber.setText(rowValue.getOrDefault(Constants.INSPECTOR_NR, ""));
             txtInspectionDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
             txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
@@ -1138,6 +1117,19 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
         MaterialButton btnTestConnection = dialogView.findViewById(R.id.btnTestConnection);
 
+        ImageButton btnUpdate = dialogView.findViewById(R.id.btnUpdate);
+        ImageButton btnViewRecord = dialogView.findViewById(R.id.btnViewRecord);
+        ImageButton btnUpload = dialogView.findViewById(R.id.btnUpload);
+
+        // Check for Upload button
+        String fileName = getFileName();
+        File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
+        if (file.exists()) {
+            btnUpload.setEnabled(true);
+        } else {
+            btnUpload.setEnabled(false);
+        }
+
         SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
 
         txtHost.setText(sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, ""));
@@ -1171,6 +1163,20 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             String password = txtPassword.getText().toString();
 
             testSmbConnection(hostAddress, sharedFolder, username, password);
+        });
+
+        btnUpdate.setOnClickListener(view -> {
+            downloadPlanFromSMB();
+        });
+
+        btnViewRecord.setOnClickListener(view -> {
+            Intent intent = new Intent(this, RecordViewActivity.class);
+            startActivity(intent);
+            dialog.dismiss();
+        });
+
+        btnUpload.setOnClickListener(view -> {
+            uploadRecords();
         });
 
         dialog.show();
@@ -1364,7 +1370,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             e.printStackTrace();
             Log.e("Excel", "Error appending data: " + e.getMessage());
         }
-        checkUploadAvailable();
     }
 
 
@@ -1433,6 +1438,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     public void uploadFileToSMB(String hostname, String shareName, String domain,
                                 String username, String password) {
+        String fileName = getFileName();
+        File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
+        if (!file.exists()) {
+            showInformationDialog("Error", "There is no records to upload.");
+            return;
+        }
+
         ExecutorService executor = Executors.newSingleThreadExecutor();
         Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -1448,9 +1460,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         share.mkdir("tischPacken/records");
                     }
 
-                    String fileName = getFileName();
                     String remotePath = "tischPacken/records/" + fileName;
-                    File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
 
                     FileInputStream fis = new FileInputStream(file);
                     OutputStream os = share.openFile(remotePath,
@@ -1501,20 +1511,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     }
                 }
             }
-        }
-
-        checkUploadAvailable();
-    }
-
-    private void checkUploadAvailable() {
-        String fileName = getFileName();
-
-        File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + fileName);
-
-        if (file.exists()) {
-            btnSave.setEnabled(true);
-        } else {
-            btnSave.setEnabled(false);
         }
     }
 
