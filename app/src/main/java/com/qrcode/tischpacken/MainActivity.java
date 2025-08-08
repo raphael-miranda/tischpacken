@@ -73,6 +73,7 @@ import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -81,6 +82,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity implements PlanListAdapter.OnSkipButtonClickListener {
 
@@ -94,6 +96,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private TextView txtInspectorNumber, txtInspectionDate, txtPlannedCartons;
 
     private RecyclerView planListView;
+    private RecyclerView specificCartonsListView;
 
     private TextInputEditText txtScan;
     private AppCompatButton btnClear;
@@ -128,10 +131,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     ArrayList<HashMap<String, String>> cartonsFromFile = new ArrayList<>();
     ArrayList<HashMap<String, String>> cartonsFromPlan = new ArrayList<>();
+    ArrayList<String> arrSpecificCtNrs = new ArrayList<>();
 
     ArrayList<String> controlledParts = new ArrayList<>();
 
     ArrayList<HashMap<String, String>> scannedList = new ArrayList<>();
+    ArrayList<String> arrScannedCartonNrs = new ArrayList<>();
+
     int totalNoOfCartons = 0;
 
     PlanListAdapter planListAdapter;
@@ -162,6 +168,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         planListView.setLayoutManager(new LinearLayoutManager(this));
         DividerItemDecoration divider = new DividerItemDecoration(planListView.getContext(), LinearLayoutManager.VERTICAL);
         planListView.addItemDecoration(divider);
+
+        specificCartonsListView = findViewById(R.id.specificCartonsListView);
+        specificCartonsListView.setLayoutManager(new LinearLayoutManager(this));
 
         txtScan = findViewById(R.id.txtScan);
         btnClear = findViewById(R.id.btnClear);
@@ -476,10 +485,15 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
 
                             scannedList.add(cartonToSave);
+                            arrScannedCartonNrs.add(scannedCarton.getOrDefault(Constants.CT_NR, ""));
+
                             saveRecord(cartonToSave);
 
                             planListAdapter = new PlanListAdapter(cartonsFromPlan, selectedPosition[0], scannedList, MainActivity.this);
                             planListView.setAdapter(planListAdapter);
+
+                            SpecificCartonsListAdapter specificCartonsListAdapter = new SpecificCartonsListAdapter(arrSpecificCtNrs, arrScannedCartonNrs);
+                            specificCartonsListView.setAdapter(specificCartonsListAdapter);
                         } else {
                             txtScan.setBackgroundTintList(redColors);
                         }
@@ -504,7 +518,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         } else {
             int totalCounter = 0;
             for (HashMap<String, String> scannedCarton : scannedList) {
-                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                String strSkippedCounter = scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0");
+                if (strSkippedCounter.isEmpty()) strSkippedCounter = "0";
+                int skipped = Integer.parseInt(strSkippedCounter);
                 if (skipped > 0) {
                     totalCounter += skipped;
                 } else {
@@ -532,9 +548,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         cartonsFromPlan.clear();
         scannedList.clear();
+        arrSpecificCtNrs.clear();
+        arrScannedCartonNrs.clear();
 
         planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
+
+        SpecificCartonsListAdapter specificCartonsListAdapter = new SpecificCartonsListAdapter(arrSpecificCtNrs, arrScannedCartonNrs);
+        specificCartonsListView.setAdapter(specificCartonsListAdapter);
     }
 
     public interface VerificationCallback {
@@ -553,8 +574,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
 
         if (!cartonNrs.isEmpty()) {
-            String[] ctNrs = cartonNrs.split("\\s*\\s");
-            List<String> arrCartonNrs = Arrays.asList(ctNrs);
+            List<String> arrCartonNrs = Arrays.stream(cartonNrs.split(","))
+                    .map(String::trim)
+                    .collect(Collectors.toList());
 
             if (!arrCartonNrs.contains(scannedCartonNr)) {
                 showInformationDialog("Verification Failed", "Scanned carton number is not in the planned carton list.");
@@ -582,11 +604,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         int qtty = Integer.parseInt(strQtty);
                         if (qtty != scannedQtty) {
                             showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                            Log.d("=============", "Verification Failed: QTTY");
                             callback.onResult(false);
                             return;
                         }
                     } catch (NumberFormatException e) {
                         showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                        Log.d("=============", "Verification Failed: QTTY exception");
                         callback.onResult(false);
                         return;
                     }
@@ -595,6 +619,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
             if (!isChecked) {
                 showInformationDialog("Verification Failed", "The carton is not unchecked.");
+                Log.d("=============", "Verification Failed: QTTY result");
                 callback.onResult(false);
                 return;
             }
@@ -706,6 +731,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
                 File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + getFileName());
 
+                if (!file.exists()) {
+                    return false;
+                }
                 FileInputStream fis = new FileInputStream(file);
 
                 Workbook workbook = new XSSFWorkbook(fis);
@@ -815,6 +843,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     public void checkNameFromExcel(String inspectorName) {
         cartonsFromPlan = new ArrayList<>();
+        arrSpecificCtNrs = new ArrayList<>();
+        arrScannedCartonNrs = new ArrayList<>();
         try{
             totalNoOfCartons = 0;
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
@@ -884,8 +914,12 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             rowValue.put(Constants.QTTY, value);
                         }
 
-                        if (cell.getColumnIndex() == 12) {
+                        if (cell.getColumnIndex() == 12 && !value.isEmpty()) {
                             rowValue.put(Constants.CT_NR, value);
+                            List<String> arrCartonNrs = Arrays.stream(value.split(","))
+                                    .map(String::trim)
+                                    .collect(Collectors.toList());
+                            arrSpecificCtNrs.addAll(arrCartonNrs);
                         }
 
                         if (cell.getColumnIndex() == 13) {
@@ -924,12 +958,16 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setEnabled(false);
             txtScan.setEnabled(true);
             txtScan.requestFocus();
+
             scannedList = readSavedScanList(inspectorName);
             checkNext();
         }
 
         planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
+
+        SpecificCartonsListAdapter specificCartonsListAdapter = new SpecificCartonsListAdapter(arrSpecificCtNrs, arrScannedCartonNrs);
+        specificCartonsListView.setAdapter(specificCartonsListAdapter);
     }
 
     private ArrayList<HashMap<String, String>> readSavedScanList(String inspectorName) {
@@ -938,6 +976,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
 
                 File file = new File(Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/" + getFileName());
+
+                if (!file.exists()) {
+                    return result;
+                }
 
                 FileInputStream fis = new FileInputStream(file);
 
@@ -980,8 +1022,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                                     break;
                             }
 
-                            if (cell.getColumnIndex() == 2) {
+                            if (cell.getColumnIndex() == 2 && !value.isEmpty()) {
                                 savedCarton.put(Constants.CT_NR, value);
+                                arrScannedCartonNrs.add(value);
                             }
 
                             if (cell.getColumnIndex() == 3) {
@@ -1117,9 +1160,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
         MaterialButton btnTestConnection = dialogView.findViewById(R.id.btnTestConnection);
 
-        ImageButton btnUpdate = dialogView.findViewById(R.id.btnUpdate);
-        ImageButton btnViewRecord = dialogView.findViewById(R.id.btnViewRecord);
-        ImageButton btnUpload = dialogView.findViewById(R.id.btnUpload);
+        MaterialButton btnUpdate = dialogView.findViewById(R.id.btnUpdate);
+        MaterialButton btnViewRecord = dialogView.findViewById(R.id.btnViewRecord);
+        MaterialButton btnUpload = dialogView.findViewById(R.id.btnUpload);
 
         // Check for Upload button
         String fileName = getFileName();

@@ -79,7 +79,9 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         for (HashMap<String, String> scannedCarton : scannedList) {
             String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
             if (scannedPartNr.equals(partNr)) {
-                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                String strSkippedCounter = scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0");
+                if (strSkippedCounter.isEmpty()) strSkippedCounter = "0";
+                int skipped = Integer.parseInt(strSkippedCounter);
                 if (skipped > 0) {
                     skippedCounter += skipped;
                 } else {

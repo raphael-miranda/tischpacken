@@ -58,7 +58,7 @@
             android:id="@+id/btnSettings"
             android:layout_width="45dp"
             android:layout_height="45dp"
-            android:background="@drawable/settings"
+            android:background="@drawable/menu"
             android:contentDescription="@string/settings"
             android:layout_marginHorizontal="12dp"
             android:layout_centerVertical="true"
@@ -318,6 +318,29 @@
             android:textAllCaps="false"
             android:textSize="16sp"
             android:enabled="false"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="8dp">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/specific_carton_nrs"
+            android:textColor="#000000"
+            android:textSize="16sp"
+            android:layout_marginBottom="4dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/specificCartonsListView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="10dp"/>
+
     </LinearLayout>
 
 </LinearLayout>

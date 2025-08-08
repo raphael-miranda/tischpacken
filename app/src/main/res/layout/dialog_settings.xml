@@ -11,6 +11,61 @@
         android:gravity="center_horizontal"
         android:padding="20dp">
 
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_margin="10dp"
+            android:layout_marginVertical="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnViewRecord"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/view_records"
+                android:textAllCaps="false"
+                android:background="@android:color/transparent"
+                app:iconPadding="20dp"
+                app:iconGravity="textStart"
+                app:icon="@drawable/book_enabled"
+                app:iconSize="32dp"
+                app:iconTint="@drawable/view_records_icon_color_selector"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="@drawable/text_color_selector"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUpload"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/upload_records"
+                android:textAllCaps="false"
+                android:background="@android:color/transparent"
+                app:iconPadding="20dp"
+                app:iconGravity="textStart"
+                app:icon="@drawable/upload_enabled"
+                app:iconSize="32dp"
+                app:iconTint="@drawable/upload_icon_color_selector"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="@drawable/text_color_selector"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUpdate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/download_files"
+                android:textAllCaps="false"
+                android:background="@android:color/transparent"
+                app:iconPadding="20dp"
+                app:iconGravity="textStart"
+                app:icon="@drawable/update"
+                app:iconSize="32dp"
+                app:iconTint="@drawable/download_icon_color_selector"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="@drawable/text_color_selector"/>
+
+        </LinearLayout>
+
         <TextView
             android:id="@+id/txtScanLabel"
             android:layout_width="wrap_content"
@@ -23,179 +78,132 @@
             android:paddingVertical="4dp"
             android:paddingHorizontal="22dp"/>
 
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/fieldHostAddress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
-            android:hint="@string/smb_address"
-            android:layout_margin="6dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/txtHostAddress"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:imeOptions="actionNext"
-                android:inputType="text"
-                android:textAlignment="center"
-                android:textSize="14sp"/>
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/fieldSharedFolder"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
-            android:hint="@string/shared_folder"
-            android:layout_margin="6dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/txtSharedFolder"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:imeOptions="actionNext"
-                android:textAlignment="center"
-                android:textSize="14sp"/>
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/fieldUserName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
-            android:hint="@string/username"
-            android:layout_margin="6dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/txtUserName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:imeOptions="actionNext"
-                android:inputType="text"
-                android:textAlignment="center"
-                android:textSize="14sp"/>
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/fieldPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
-            android:hint="@string/password"
-            android:layout_margin="6dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/txtPassword"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:imeOptions="actionDone"
-                android:textAlignment="center"
-                android:textSize="14sp"/>
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-
-<!--        <LinearLayout-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:orientation="horizontal"-->
-<!--            android:gravity="center">-->
-
-<!--            <CheckBox-->
-<!--                android:id="@+id/checkboxManual"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:nextFocusForward="@id/btnSave"/>-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:fontFamily="sans-serif"-->
-<!--                android:text="@string/manual"-->
-<!--                android:textColor="#000000"-->
-<!--                android:textSize="18sp"-->
-<!--                android:textStyle="normal" />-->
-<!--        </LinearLayout>-->
-
         <LinearLayout
+            android:id="@+id/view_smb_settings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:padding="10dp">
+            android:orientation="vertical"
+            android:gravity="center_horizontal">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fieldHostAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+                android:hint="@string/smb_address"
+                android:layout_margin="6dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtHostAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionNext"
+                    android:inputType="text"
+                    android:textAlignment="center"
+                    android:textSize="14sp"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fieldSharedFolder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+                android:hint="@string/shared_folder"
+                android:layout_margin="6dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtSharedFolder"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:imeOptions="actionNext"
+                    android:textAlignment="center"
+                    android:textSize="14sp"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fieldUserName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+                android:hint="@string/username"
+                android:layout_margin="6dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtUserName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionNext"
+                    android:inputType="text"
+                    android:textAlignment="center"
+                    android:textSize="14sp"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/fieldPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.Dense"
+                android:hint="@string/password"
+                android:layout_margin="6dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/txtPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:imeOptions="actionDone"
+                    android:textAlignment="center"
+                    android:textSize="14sp"/>
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="10dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSave"
+                    android:layout_width="0dp"
+                    android:layout_height="60dp"
+                    android:layout_weight="1"
+                    android:text="@string/save"
+                    android:textSize="18sp"
+                    android:textAllCaps="true"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancel"
+                    android:layout_width="0dp"
+                    android:layout_height="60dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="20dp"
+                    android:text="@string/cancel"
+                    android:textSize="18sp"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSave"
-                android:layout_width="0dp"
+                android:id="@+id/btnTestConnection"
+                android:layout_width="wrap_content"
                 android:layout_height="60dp"
                 android:layout_weight="1"
-                android:text="@string/save"
+                android:text="@string/test_connection"
                 android:textSize="18sp"
-                android:textAllCaps="true"/>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCancel"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:layout_marginStart="20dp"
-                android:text="@string/cancel"
-                android:textSize="18sp"
-                android:textAllCaps="false" />
-
+                android:textAllCaps="false"/>
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTestConnection"
-            android:layout_width="wrap_content"
-            android:layout_height="60dp"
-            android:layout_weight="1"
-            android:text="@string/test_connection"
-            android:textSize="18sp"
-            android:textAllCaps="false"/>
 
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_margin="10dp"
-            android:layout_marginVertical="16dp"
-            android:gravity="center">
-
-            <ImageButton
-                android:id="@+id/btnUpdate"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/update"
-                android:contentDescription="@string/update"
-                android:layout_marginHorizontal="12dp"/>
-
-            <ImageButton
-                android:id="@+id/btnViewRecord"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/book_image_selector"
-                android:contentDescription="@string/view"
-                android:layout_marginHorizontal="12dp"/>
-
-            <ImageButton
-                android:id="@+id/btnUpload"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:background="@drawable/save_image_selector"
-                android:contentDescription="@string/save"
-                android:layout_marginHorizontal="12dp" />
-        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
