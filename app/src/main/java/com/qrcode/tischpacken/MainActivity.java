@@ -14,6 +14,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.text.Editable;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.util.Patterns;
@@ -87,6 +89,7 @@ import java.util.stream.Collectors;
 public class MainActivity extends AppCompatActivity implements PlanListAdapter.OnSkipButtonClickListener {
 
     int ASK_MULTIPLE_PERMISSION_REQUEST_CODE = 1;
+    private static String LOG_TAG = "tischPacken_MainActivity";
 
     private TextView txtInspectorCounter, txtTotalInspectors;
     int inspectorCounter = 0;
@@ -206,15 +209,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
         }
 
-        if (checkPermission() &&
-                (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
-                        Environment.isExternalStorageManager())) {
-            // All permissions are granted
-            new Thread(this::checkLoggerFolder).start();
-        } else {
-            Toast.makeText(getApplication(),"You didn't provided all the permissions", Toast.LENGTH_SHORT).show();
-        }
-
         btnNext.setOnClickListener(view -> {
             clearAll();
             txtName.setEnabled(true);
@@ -230,22 +224,36 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             showSettingsDialog();
         });
 
-        showTotalInspectorsCount();
+        if (checkPermission() &&
+                (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R &&
+                        Environment.isExternalStorageManager())) {
+            // All permissions are granted
+            new Thread(this::checkLoggerFolder).start();
 
-        readControlledParts();
-        readCartons();
 
-        initNameInput();
-        initContentsInput();
+            showTotalInspectorsCount();
 
+            readControlledParts();
+            readCartons();
+
+            initNameInput();
+            initContentsInput();
+        } else {
+            Toast.makeText(getApplication(),"You didn't provided all the permissions", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void showTotalInspectorsCount() {
         ArrayList<String> inspectorNames = new ArrayList<>();
 
         try{
-            String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
-            FileInputStream fs = new FileInputStream(FilePath);
+            String filePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
+            File file = new File(filePath);
+            if (!file.exists()) {
+                Log.d(LOG_TAG, "plan.xls file not found!");
+                return;
+            }
+            FileInputStream fs = new FileInputStream(file);
             Workbook wb = new HSSFWorkbook(fs);
 
             Sheet sheet = wb.getSheetAt(0);
@@ -274,7 +282,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private void readControlledParts() {
         try {
             String filePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/controlledparts.txt";
-
+            File file = new File(filePath);
+            if (!file.exists()) {
+                Log.d(LOG_TAG, "controlledparts.txt file not found.");
+                return;
+            }
             BufferedReader reader = new BufferedReader(new FileReader(filePath));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -290,8 +302,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         cartonsFromFile = new ArrayList<>();
 
         try{
-            String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/cartons.xlsx";
-            FileInputStream fs = new FileInputStream(FilePath);
+            String filePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/cartons.xlsx";
+            File file = new File(filePath);
+            if (!file.exists()) {
+                Log.d(LOG_TAG, "cartons.xlsx file not found!");
+                return;
+            }
+
+            FileInputStream fs = new FileInputStream(filePath);
             Workbook wb = new XSSFWorkbook(fs);
 
             Sheet sheet = wb.getSheetAt(0);
@@ -497,6 +515,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                         } else {
                             txtScan.setBackgroundTintList(redColors);
                         }
+                        checkNext();
                     }
                 });
 
@@ -506,14 +525,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         if (!isPartNumberFounded) {
             txtScan.setBackgroundTintList(redColors);
             showInformationDialog("Error", "Part number not found in plan.");
+            checkNext();
         }
-
-        checkNext();
     }
 
     private void checkNext() {
-        Log.d("========", "scanned " + scannedList.size() + " / " + totalNoOfCartons);
+
         if (scannedList.size() >= totalNoOfCartons) {
+            Log.d(LOG_TAG, "scanned " + scannedList.size() + " / " + totalNoOfCartons);
             btnNext.setEnabled(true);
         } else {
             int totalCounter = 0;
@@ -528,7 +547,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 }
             }
 
-            Log.d("========", "scanned " + totalCounter + " / " + totalNoOfCartons);
+            Log.d(LOG_TAG, "scanned " + totalCounter + " / " + totalNoOfCartons);
 
             if (totalCounter >= totalNoOfCartons) {
                 btnNext.setEnabled(true);
@@ -667,6 +686,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         EditText input = new EditText(this);
         input.setHint("Enter inspector number");
         input.setPadding(40, 30, 40, 30);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(4)});
+
         LinearLayout container = new LinearLayout(this);
         container.setPadding(50, 40, 50, 10); // outer padding for dialog
         container.addView(input, new LinearLayout.LayoutParams(
@@ -864,8 +887,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 Cell partNrCell = row.getCell(2);
                 String partNr = partNrCell.getStringCellValue();
 
-                if (inspector.equals(inspectorName) && !arrPartNrs.contains(partNr)) {
-                    arrPartNrs.add(partNr);
+//                if (inspector.equals(inspectorName) && !arrPartNrs.contains(partNr)) {
+//                    arrPartNrs.add(partNr);
+                if (inspector.equals(inspectorName)) {
 
                     for (Cell cell: row) {
 
@@ -1160,9 +1184,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
         MaterialButton btnTestConnection = dialogView.findViewById(R.id.btnTestConnection);
 
-        MaterialButton btnUpdate = dialogView.findViewById(R.id.btnUpdate);
+
         MaterialButton btnViewRecord = dialogView.findViewById(R.id.btnViewRecord);
         MaterialButton btnUpload = dialogView.findViewById(R.id.btnUpload);
+        MaterialButton btnDownload = dialogView.findViewById(R.id.btnDownload);
 
         // Check for Upload button
         String fileName = getFileName();
@@ -1175,7 +1200,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         SharedPreferences sharedPreferences = getSharedPreferences(getPackageName(), MODE_PRIVATE);
 
-        txtHost.setText(sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, ""));
+        String smbServerAddress = sharedPreferences.getString(Constants.SMB_SERVER_ADDRESS, "");
+        if (smbServerAddress.isEmpty()) {
+            btnDownload.setEnabled(false);
+        } else {
+            btnDownload.setEnabled(true);
+        }
+
+        txtHost.setText(smbServerAddress);
         txtSharedFolder.setText(sharedPreferences.getString(Constants.SMB_SHARED_FOLDER, ""));
         txtUserName.setText(sharedPreferences.getString(Constants.SMB_USERNAME, ""));
         txtPassword.setText(sharedPreferences.getString(Constants.SMB_PASSWORD, ""));
@@ -1208,7 +1240,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             testSmbConnection(hostAddress, sharedFolder, username, password);
         });
 
-        btnUpdate.setOnClickListener(view -> {
+        btnDownload.setOnClickListener(view -> {
             downloadPlanFromSMB();
         });
 

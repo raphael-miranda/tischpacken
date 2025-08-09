@@ -50,7 +50,7 @@
                 android:textColor="@drawable/text_color_selector"/>
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnUpdate"
+                android:id="@+id/btnDownload"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/download_files"
