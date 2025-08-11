@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private AppCompatButton btnNext;
 
     private TextView txtInspectorNumber, txtInspectionDate, txtPlannedCartons;
+    private TextView txtScannedCounter;
 
     private RecyclerView planListView;
     private RecyclerView specificCartonsListView;
@@ -159,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         txtInspectorCounter = findViewById(R.id.txtInspectorCounter);
         txtInspectorCounter.setText(String.valueOf(inspectorCounter));
         txtTotalInspectors = findViewById(R.id.txtTotalInspectors);
+        txtScannedCounter = findViewById(R.id.txtScannedCounter);
 
         txtName = findViewById(R.id.txtName);
         btnNext = findViewById(R.id.btnNext);
@@ -214,6 +216,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             txtName.setEnabled(true);
             txtName.requestFocus();
             txtScan.setEnabled(false);
+            txtScannedCounter.setText("0");
         });
 
         btnClear.setOnClickListener(view -> {
@@ -531,8 +534,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     private void checkNext() {
 
-        if (scannedList.size() >= totalNoOfCartons) {
+        int scannedSize = scannedList.size();
+
+        if (scannedSize >= totalNoOfCartons) {
             Log.d(LOG_TAG, "scanned " + scannedList.size() + " / " + totalNoOfCartons);
+            txtScannedCounter.setText(String.valueOf(scannedSize));
             btnNext.setEnabled(true);
         } else {
             int totalCounter = 0;
@@ -548,6 +554,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
 
             Log.d(LOG_TAG, "scanned " + totalCounter + " / " + totalNoOfCartons);
+
+            txtScannedCounter.setText(String.valueOf(totalCounter));
 
             if (totalCounter >= totalNoOfCartons) {
                 btnNext.setEnabled(true);
@@ -865,6 +873,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
 
     public void checkNameFromExcel(String inspectorName) {
+        txtScannedCounter.setText("0");
         cartonsFromPlan = new ArrayList<>();
         arrSpecificCtNrs = new ArrayList<>();
         arrScannedCartonNrs = new ArrayList<>();
