@@ -600,6 +600,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
         String inspectorNr = matchedCarton.getOrDefault(Constants.INSPECTOR_NR, "0");
 
+        // check duplicated carton
+        if (isExistedCarton(inspector, scannedCartonNr)) {
+            showInformationDialog("Verification Failed", "Double scan!");
+            callback.onResult(false);
+            return;
+        }
+
         if (!cartonNrs.isEmpty()) {
             List<String> arrCartonNrs = Arrays.stream(cartonNrs.split(","))
                     .map(String::trim)
@@ -609,15 +616,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 showInformationDialog("Verification Failed", "Scanned carton number is not in the planned carton list.");
                 callback.onResult(false);
                 return;
+            } else {
+                callback.onResult(true);
+                return;
             }
 
-        }
-
-        // check duplicated carton
-        if (isExistedCarton(inspector, scannedCartonNr)) {
-            showInformationDialog("Verification Failed", "Double scan!");
-            callback.onResult(false);
-            return;
         }
 
         // Carton validation (cartons.xlsx)
@@ -1324,8 +1327,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), "");
                     com.hierynomus.smbj.session.Session session = connection.authenticate(ac);
                     DiskShare share = (DiskShare) session.connectShare(shareName);
-
-
 
                     // Remote SMB file path
                     Map<String, String> fileMap = new HashMap<>();

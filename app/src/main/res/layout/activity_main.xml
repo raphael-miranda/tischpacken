@@ -138,7 +138,7 @@
                 android:gravity="center_vertical"
                 android:layout_marginVertical="2dp">
                 <TextView
-                    android:layout_width="140dp"
+                    android:layout_width="130dp"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif"
                     android:text="@string/inspector_number"
@@ -169,7 +169,7 @@
                 android:gravity="center_vertical"
                 android:layout_marginVertical="2dp">
                 <TextView
-                    android:layout_width="140dp"
+                    android:layout_width="130dp"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif"
                     android:text="@string/inspection_date"
@@ -200,7 +200,7 @@
                 android:gravity="center_vertical"
                 android:layout_marginVertical="2dp">
                 <TextView
-                    android:layout_width="140dp"
+                    android:layout_width="130dp"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif"
                     android:text="@string/planned_cartons"
