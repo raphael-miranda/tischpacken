@@ -442,7 +442,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     String strCartonNr = strCtNr.split(";")[0];
 
                     try {
-                        int qtty = Integer.parseInt(strQtty);
                         HashMap<String, String> scannedCarton = new HashMap<>();
                         scannedCarton.put(Constants.PART_NUMBER, partNr);
                         scannedCarton.put(Constants.QTTY, strQtty);
@@ -592,7 +591,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
     private void verificationChecks(HashMap<String, String> matchedCarton, HashMap<String, String> scannedCarton, VerificationCallback callback) {
         String scannedCartonNr = scannedCarton.getOrDefault(Constants.CT_NR, "");
         String strScannedQtty = scannedCarton.getOrDefault(Constants.QTTY, "0");
-        int scannedQtty = Integer.parseInt(strScannedQtty);
+        int scannedQtty = 0;
+        try {
+            scannedQtty = Integer.parseInt(strScannedQtty);
+        } catch (NumberFormatException e) {
+            scannedQtty = 0;
+        }
+
 
         String inspector = matchedCarton.getOrDefault(Constants.INSPECTOR, "");
         String cartonNrs = matchedCarton.getOrDefault(Constants.CT_NR, "");
@@ -631,7 +636,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     isChecked = true;
                     String strQtty = cartonFromFile.getOrDefault(Constants.UNCHECKED, "0");
                     try {
-                        int qtty = Integer.parseInt(strQtty);
+                        int qtty = 0;
+                        try {
+                            qtty = Integer.parseInt(strQtty);
+                        } catch (Exception e) {
+                            qtty = 0;
+                        }
+
                         if (qtty != scannedQtty) {
                             showInformationDialog("Verification Failed", "The carton is not unchecked.");
                             Log.d("=============", "Verification Failed: QTTY");
@@ -1118,14 +1129,25 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
 
         String strMaxNoOfCartons = item.getOrDefault(Constants.NO_OF_CARTON, "0");
-        int maxNoOfCartons = Integer.parseInt(strMaxNoOfCartons);
+        int maxNoOfCartons = 0;
+        try {
+            maxNoOfCartons = Integer.parseInt(strMaxNoOfCartons);
+        } catch (NumberFormatException e) {
+            maxNoOfCartons = 0;
+        }
+
 
         String selectedPartNr = item.getOrDefault(Constants.PART_NUMBER, "");
         int skippedCounter = 0, scannedCounter = 0;
         for (HashMap<String, String> scannedCarton : scannedList) {
             String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
             if (scannedPartNr.equals(selectedPartNr)) {
-                int skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                int skipped = 0;
+                try {
+                    skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
+                } catch (Exception e) {
+                    skipped = 0;
+                }
                 if (skipped > 0) {
                     skippedCounter += skipped;
                 } else {
