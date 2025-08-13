@@ -62,6 +62,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -891,13 +894,15 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         cartonsFromPlan = new ArrayList<>();
         arrSpecificCtNrs = new ArrayList<>();
         arrScannedCartonNrs = new ArrayList<>();
+
+        ArrayList<String> arrPartNrs = new ArrayList<>();
+        ArrayList<String> arrPartNrsDuplicated = new ArrayList<>();
+
         try{
             totalNoOfCartons = 0;
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
             FileInputStream fs = new FileInputStream(FilePath);
             Workbook wb = new HSSFWorkbook(fs);
-
-            ArrayList<String> arrPartNrs = new ArrayList<>();
 
             Sheet sheet = wb.getSheetAt(0);
 
@@ -910,9 +915,14 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 Cell partNrCell = row.getCell(2);
                 String partNr = partNrCell.getStringCellValue();
 
-//                if (inspector.equals(inspectorName) && !arrPartNrs.contains(partNr)) {
-//                    arrPartNrs.add(partNr);
                 if (inspector.equals(inspectorName)) {
+                    if (arrPartNrs.contains(partNr)) {
+                        if (!arrPartNrsDuplicated.contains(partNr)) {
+                            arrPartNrsDuplicated.add(partNr);
+                        }
+                    } else {
+                        arrPartNrs.add(partNr);
+                    }
 
                     for (Cell cell: row) {
 
@@ -993,6 +1003,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             showInformationDialog("Error", "Name not found in plan.");
             txtName.setText("");
         } else {
+            if (!arrPartNrsDuplicated.isEmpty()) {
+                cleanDuplicatedPartNrs(arrPartNrsDuplicated);
+            }
+
             inspectorCounter += 1;
             txtInspectorCounter.setText(String.valueOf(inspectorCounter));
 
@@ -1009,6 +1023,100 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             scannedList = readSavedScanList(inspectorName);
             checkNext();
         }
+
+        planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
+        planListView.setAdapter(planListAdapter);
+
+        SpecificCartonsListAdapter specificCartonsListAdapter = new SpecificCartonsListAdapter(arrSpecificCtNrs, arrScannedCartonNrs);
+        specificCartonsListView.setAdapter(specificCartonsListAdapter);
+    }
+
+    private void cleanDuplicatedPartNrs(ArrayList<String> arrPartNrsDuplicated) {
+        JSONArray arrDuplicatedCartons = new JSONArray();
+        try {
+            for (String duplicatedPartNr: arrPartNrsDuplicated) {
+                JSONObject cartonObject = new JSONObject();
+                cartonObject.put(Constants.PART_NUMBER, duplicatedPartNr);
+                JSONArray arrTypes = new JSONArray();
+                for (HashMap<String, String> carton: cartonsFromPlan) {
+                    String partNr = carton.getOrDefault(Constants.PART_NUMBER, "");
+                    if (duplicatedPartNr.equals(partNr)) {
+                        String type = carton.getOrDefault(Constants.TYPE, "");
+                        arrTypes.put(type);
+                    }
+                }
+                cartonObject.put(Constants.TYPE, arrTypes);
+                arrDuplicatedCartons.put(cartonObject);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        showSelectTypeDialog(arrDuplicatedCartons);
+    }
+
+    private void showSelectTypeDialog(JSONArray arrDuplicatedCartons) {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.dialog_select_type, null);
+        builder.setView(dialogView)
+                .setCancelable(true);
+        AlertDialog dialog = builder.create();
+
+        RecyclerView typeListView = dialogView.findViewById(R.id.typeList);
+        typeListView.setLayoutManager(new LinearLayoutManager(this));
+        SelectTypeListAdapter adapter = new SelectTypeListAdapter(arrDuplicatedCartons);
+        typeListView.setAdapter(adapter);
+
+
+        MaterialButton btnSave = dialogView.findViewById(R.id.btnConfirm);
+
+        btnSave.setOnClickListener(view -> {
+            ArrayList<HashMap<String, String>> arrSelectedTypes = adapter.getArrSelectedTypes();
+
+            for (HashMap<String, String> selectedTypeItem : arrSelectedTypes) {
+                String selectedPartNr = selectedTypeItem.getOrDefault(Constants.PART_NUMBER, "");
+                String selectedType = selectedTypeItem.getOrDefault(Constants.TYPE, "");
+
+                if (!selectedPartNr.isEmpty()) {
+                    for (int i = 0; i < cartonsFromPlan.size(); i++) {
+                        HashMap<String, String> carton = cartonsFromPlan.get(i);
+                        String partNr = carton.getOrDefault(Constants.PART_NUMBER, "");
+                        if (partNr.equals(selectedPartNr)) {
+                            String type = carton.getOrDefault(Constants.TYPE, "");
+                            if (!selectedType.equals(type)) {
+                                cartonsFromPlan.remove(i);
+                                i--;
+                            }
+                        }
+                    }
+                }
+            }
+
+            refreshList();
+            dialog.dismiss();
+        });
+
+        dialog.setCanceledOnTouchOutside(false);
+        dialog.show();
+    }
+
+    private void refreshList() {
+        HashMap<String, String> rowValue = cartonsFromPlan.get(0);
+        txtInspectorNumber.setText(rowValue.getOrDefault(Constants.INSPECTOR_NR, ""));
+        txtInspectionDate.setText(rowValue.getOrDefault(Constants.DATE, ""));
+
+        totalNoOfCartons = 0;
+        for (HashMap<String, String> carton : cartonsFromPlan) {
+            String strNoOfCarton = carton.getOrDefault(Constants.NO_OF_CARTON, "0");
+            try {
+                int noOfCarton = Integer.parseInt(strNoOfCarton);
+                totalNoOfCartons += noOfCarton;
+            } catch (Exception ignored) {
+
+            }
+        }
+
+        txtPlannedCartons.setText(String.valueOf(totalNoOfCartons));
 
         planListAdapter = new PlanListAdapter(cartonsFromPlan, -1, scannedList, this);
         planListView.setAdapter(planListAdapter);
