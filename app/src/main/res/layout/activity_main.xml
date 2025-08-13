@@ -14,6 +14,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <ImageButton
+            android:id="@+id/btnClearAll"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:background="@drawable/clear"
+            android:contentDescription="@string/settings"
+            android:layout_marginHorizontal="12dp"
+            android:layout_centerVertical="true"/>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

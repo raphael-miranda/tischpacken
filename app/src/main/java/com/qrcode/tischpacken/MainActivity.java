@@ -107,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
     private TextInputEditText txtScan;
     private AppCompatButton btnClear;
-    private ImageButton btnSettings;
 
     private ColorStateList normalColors;
     private final ColorStateList yellowColors = new ColorStateList(
@@ -183,7 +182,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         txtScan = findViewById(R.id.txtScan);
         btnClear = findViewById(R.id.btnClear);
 
-        btnSettings = findViewById(R.id.btnSettings);
+        ImageButton btnClearAll = findViewById(R.id.btnClearAll);
+        ImageButton btnSettings = findViewById(R.id.btnSettings);
 
         normalColors = txtName.getBackgroundTintList();
         if (txtName.getText().toString().isEmpty()) {
@@ -214,11 +214,23 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             }
         }
 
+        btnClearAll.setOnClickListener(view -> {
+            new MaterialAlertDialogBuilder(this)
+                    .setTitle("Confirm")
+                    .setMessage("Are you sure to clear all?")
+                    .setNegativeButton("Yes", (dialogInterface, i) -> {
+                        clearAll();
+                        dialogInterface.dismiss();
+                    })
+                    .setPositiveButton("No", (dialogInterface, i) -> {
+                        dialogInterface.dismiss();
+                    })
+                    .show();
+        });
+
         btnNext.setOnClickListener(view -> {
             clearAll();
-            txtName.setEnabled(true);
-            txtName.requestFocus();
-            txtScan.setEnabled(false);
+
             txtScannedCounter.setText("0");
         });
 
@@ -585,6 +597,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         SpecificCartonsListAdapter specificCartonsListAdapter = new SpecificCartonsListAdapter(arrSpecificCtNrs, arrScannedCartonNrs);
         specificCartonsListView.setAdapter(specificCartonsListAdapter);
+
+        txtName.setEnabled(true);
+        txtName.requestFocus();
+        txtScan.setEnabled(false);
     }
 
     public interface VerificationCallback {
