@@ -23,11 +23,14 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -484,7 +487,35 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
         String partNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
 
-        boolean result = false;
+        ArrayList<String> arrMatchedTypes = getMatchedTypes(partNr);
+
+        if (arrMatchedTypes.size() > 1) {
+            showSelectTypeDialog(scannedCarton, arrMatchedTypes);
+        } else if (!arrMatchedTypes.isEmpty()) {
+            verificationCarton(scannedCarton, arrMatchedTypes.get(0));
+        }
+    }
+
+    private ArrayList<String> getMatchedTypes(String partNr) {
+        ArrayList<String> matchedTypes = new ArrayList<>();
+
+        for (int i = 0; i < cartonsFromPlan.size(); i++) {
+            HashMap<String, String> carton = cartonsFromPlan.get(i);
+            String partNumber = carton.getOrDefault(Constants.PART_NUMBER, "");
+            if (partNumber.equals(partNr)) {
+                String type = carton.getOrDefault(Constants.TYPE, "");
+                if (!type.isEmpty()) {
+                    matchedTypes.add(type);
+                }
+            }
+        }
+
+        return matchedTypes;
+    }
+
+    private void verificationCarton(HashMap<String, String> scannedCarton, String selectedType) {
+        String partNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
+
         final int[] selectedPosition = {-1};
         HashMap<String, String> matchedCarton = new HashMap<>();
 
@@ -492,9 +523,11 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         for (int i = 0; i < cartonsFromPlan.size(); i++) {
             matchedCarton = cartonsFromPlan.get(i);
             String partNumber = matchedCarton.getOrDefault(Constants.PART_NUMBER, "");
-            if (partNumber.equals(partNr)) {
-                isPartNumberFounded = true;
+            String type = matchedCarton.getOrDefault(Constants.TYPE, "");
 
+            if (partNumber.equals(partNr) && selectedType.equals(type)) {
+
+                isPartNumberFounded = true;
 
                 HashMap<String, String> finalMatchedCarton = matchedCarton;
                 int finalI = i;
@@ -636,7 +669,9 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     .map(String::trim)
                     .collect(Collectors.toList());
 
-            if (!arrCartonNrs.contains(scannedCartonNr)) {
+            int scannedCounter = getScannedCounter(partNumber, type);
+
+            if (!arrCartonNrs.contains(scannedCartonNr) && arrCartonNrs.size() > scannedCounter) {
                 showInformationDialog("Verification Failed", "Scanned carton number is not in the planned carton list.");
                 callback.onResult(false);
                 return;
@@ -716,6 +751,23 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         } else {
             callback.onResult(true);
         }
+    }
+
+    private int getScannedCounter(String partNr, String type) {
+        int scannedCounter = 0;
+        for (HashMap<String, String> scannedCarton : scannedList) {
+            String tempPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
+            String tempType = scannedCarton.getOrDefault(Constants.TYPE, "");
+            if (tempPartNr.equals(partNr) && tempType.equals(type)) {
+                String strSkippedCounter = scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0");
+                if (strSkippedCounter.isEmpty()) strSkippedCounter = "0";
+                int skipped = Integer.parseInt(strSkippedCounter);
+                if (skipped == 0) {
+                    scannedCounter += 1;
+                }
+            }
+        }
+        return scannedCounter;
     }
 
     public interface InputCallback {
@@ -911,9 +963,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         arrSpecificCtNrs = new ArrayList<>();
         arrScannedCartonNrs = new ArrayList<>();
 
-        ArrayList<String> arrPartNrs = new ArrayList<>();
-        ArrayList<String> arrPartNrsDuplicated = new ArrayList<>();
-
         try{
             totalNoOfCartons = 0;
             String FilePath = Utils.getMainFilePath(getApplicationContext()) + "/" + Constants.FolderName + "/plan.xls";
@@ -932,13 +981,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 String partNr = partNrCell.getStringCellValue();
 
                 if (inspector.equals(inspectorName)) {
-                    if (arrPartNrs.contains(partNr)) {
-                        if (!arrPartNrsDuplicated.contains(partNr)) {
-                            arrPartNrsDuplicated.add(partNr);
-                        }
-                    } else {
-                        arrPartNrs.add(partNr);
-                    }
 
                     for (Cell cell: row) {
 
@@ -1019,9 +1061,6 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             showInformationDialog("Error", "Name not found in plan.");
             txtName.setText("");
         } else {
-            if (!arrPartNrsDuplicated.isEmpty()) {
-                cleanDuplicatedPartNrs(arrPartNrsDuplicated);
-            }
 
             inspectorCounter += 1;
             txtInspectorCounter.setText(String.valueOf(inspectorCounter));
@@ -1047,30 +1086,10 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         specificCartonsListView.setAdapter(specificCartonsListAdapter);
     }
 
-    private void cleanDuplicatedPartNrs(ArrayList<String> arrPartNrsDuplicated) {
-        JSONArray arrDuplicatedCartons = new JSONArray();
-        try {
-            for (String duplicatedPartNr: arrPartNrsDuplicated) {
-                JSONObject cartonObject = new JSONObject();
-                cartonObject.put(Constants.PART_NUMBER, duplicatedPartNr);
-                JSONArray arrTypes = new JSONArray();
-                for (HashMap<String, String> carton: cartonsFromPlan) {
-                    String partNr = carton.getOrDefault(Constants.PART_NUMBER, "");
-                    if (duplicatedPartNr.equals(partNr)) {
-                        String type = carton.getOrDefault(Constants.TYPE, "");
-                        arrTypes.put(type);
-                    }
-                }
-                cartonObject.put(Constants.TYPE, arrTypes);
-                arrDuplicatedCartons.put(cartonObject);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        showSelectTypeDialog(arrDuplicatedCartons);
-    }
+    private String m_selectedType = "";
 
-    private void showSelectTypeDialog(JSONArray arrDuplicatedCartons) {
+    private void showSelectTypeDialog(HashMap<String, String> scannedCarton, ArrayList<String> arrTypes) {
+        m_selectedType = arrTypes.get(0);
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_select_type, null);
@@ -1078,37 +1097,33 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                 .setCancelable(true);
         AlertDialog dialog = builder.create();
 
-        RecyclerView typeListView = dialogView.findViewById(R.id.typeList);
-        typeListView.setLayoutManager(new LinearLayoutManager(this));
-        SelectTypeListAdapter adapter = new SelectTypeListAdapter(arrDuplicatedCartons);
-        typeListView.setAdapter(adapter);
+        Spinner typeSpinner = dialogView.findViewById(R.id.typeSpinner);
 
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                dialogView.getContext(),
+                android.R.layout.simple_spinner_item,
+                arrTypes
+        );
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        typeSpinner.setAdapter(adapter);
+        typeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int position1, long id) {
+                m_selectedType = adapterView.getItemAtPosition(position1).toString();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+
+            }
+        });
 
         MaterialButton btnSave = dialogView.findViewById(R.id.btnConfirm);
 
         btnSave.setOnClickListener(view -> {
-            ArrayList<HashMap<String, String>> arrSelectedTypes = adapter.getArrSelectedTypes();
 
-            for (HashMap<String, String> selectedTypeItem : arrSelectedTypes) {
-                String selectedPartNr = selectedTypeItem.getOrDefault(Constants.PART_NUMBER, "");
-                String selectedType = selectedTypeItem.getOrDefault(Constants.TYPE, "");
-
-                if (!selectedPartNr.isEmpty()) {
-                    for (int i = 0; i < cartonsFromPlan.size(); i++) {
-                        HashMap<String, String> carton = cartonsFromPlan.get(i);
-                        String partNr = carton.getOrDefault(Constants.PART_NUMBER, "");
-                        if (partNr.equals(selectedPartNr)) {
-                            String type = carton.getOrDefault(Constants.TYPE, "");
-                            if (!selectedType.equals(type)) {
-                                cartonsFromPlan.remove(i);
-                                i--;
-                            }
-                        }
-                    }
-                }
-            }
-
-            refreshList();
+            // compare selectedType
+            verificationCarton(scannedCarton, m_selectedType);
             dialog.dismiss();
         });
 
