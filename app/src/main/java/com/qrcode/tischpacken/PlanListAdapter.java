@@ -68,17 +68,19 @@ public class PlanListAdapter extends RecyclerView.Adapter<PlanListAdapter.PlanVi
         HashMap<String, String> localList = list.get(position);
 
         String partNr = localList.getOrDefault(Constants.PART_NUMBER, "");
+        String type = localList.getOrDefault(Constants.TYPE, "");
         String strNoOfCarton = localList.getOrDefault(Constants.NO_OF_CARTON, "0");
         int noOfCarton = Integer.parseInt(strNoOfCarton);
         holder.txtPartNumber.setText(partNr);
-        holder.txtType.setText(localList.getOrDefault(Constants.TYPE, ""));
+        holder.txtType.setText(type);
         holder.txtNoOfCarton.setText(strNoOfCarton);
 
         int scannedCounter = 0;
         int skippedCounter = 0;
         for (HashMap<String, String> scannedCarton : scannedList) {
             String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
-            if (scannedPartNr.equals(partNr)) {
+            String scannedType = scannedCarton.getOrDefault(Constants.TYPE, "");
+            if (scannedPartNr.equals(partNr) && type.equals(scannedType)) {
                 String strSkippedCounter = scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0");
                 if (strSkippedCounter.isEmpty()) strSkippedCounter = "0";
                 int skipped = Integer.parseInt(strSkippedCounter);

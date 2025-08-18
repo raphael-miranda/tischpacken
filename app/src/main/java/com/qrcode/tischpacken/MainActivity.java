@@ -223,6 +223,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     .setMessage("Are you sure to clear all?")
                     .setNegativeButton("Yes", (dialogInterface, i) -> {
                         clearAll();
+                        removeCurrentFile();
                         dialogInterface.dismiss();
                     })
                     .setPositiveButton("No", (dialogInterface, i) -> {
@@ -548,6 +549,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                             cartonToSave.put(Constants.SCAN_DATE, currentDate);
                             cartonToSave.put(Constants.INSPECTOR, finalMatchedCarton.getOrDefault(Constants.INSPECTOR, ""));
                             cartonToSave.put(Constants.CT_NR, scannedCarton.getOrDefault(Constants.CT_NR, ""));
+                            cartonToSave.put(Constants.TYPE, selectedType);
                             cartonToSave.put(Constants.PART_NUMBER, scannedCarton.getOrDefault(Constants.PART_NUMBER, ""));
                             cartonToSave.put(Constants.D_NR, scannedCarton.getOrDefault(Constants.D_NR, ""));
                             cartonToSave.put(Constants.QTTY, scannedCarton.getOrDefault(Constants.QTTY, "0"));
@@ -1310,6 +1312,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
             skippedItem.put(Constants.INSPECTOR, item.getOrDefault(Constants.INSPECTOR, ""));
             skippedItem.put(Constants.CT_NR, "");
             skippedItem.put(Constants.PART_NUMBER, item.getOrDefault(Constants.PART_NUMBER, ""));
+            skippedItem.put(Constants.TYPE, item.getOrDefault(Constants.TYPE, ""));
             skippedItem.put(Constants.D_NR, "");
             skippedItem.put(Constants.QTTY, item.getOrDefault(Constants.QTTY, ""));
             skippedItem.put(Constants.SCAN_STATUS, "Skipped");
