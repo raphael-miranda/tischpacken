@@ -224,6 +224,8 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
                     .setNegativeButton("Yes", (dialogInterface, i) -> {
                         clearAll();
                         removeCurrentFile();
+                        inspectorCounter = 0;
+                        txtInspectorCounter.setText("0");
                         dialogInterface.dismiss();
                     })
                     .setPositiveButton("No", (dialogInterface, i) -> {
@@ -621,6 +623,7 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
         txtInspectorNumber.setText("");
         txtInspectionDate.setText("");
         txtPlannedCartons.setText("");
+        txtScannedCounter.setText("0");
 
         cartonsFromPlan.clear();
         scannedList.clear();
