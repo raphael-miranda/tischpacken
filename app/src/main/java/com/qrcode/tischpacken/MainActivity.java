@@ -1282,10 +1282,13 @@ public class MainActivity extends AppCompatActivity implements PlanListAdapter.O
 
 
         String selectedPartNr = item.getOrDefault(Constants.PART_NUMBER, "");
+        String selectedType = item.getOrDefault(Constants.TYPE, "");
         int skippedCounter = 0, scannedCounter = 0;
         for (HashMap<String, String> scannedCarton : scannedList) {
             String scannedPartNr = scannedCarton.getOrDefault(Constants.PART_NUMBER, "");
-            if (scannedPartNr.equals(selectedPartNr)) {
+            String scannedType = scannedCarton.getOrDefault(Constants.TYPE, "");
+
+            if (scannedPartNr.equals(selectedPartNr) && scannedType.equals(selectedType)) {
                 int skipped = 0;
                 try {
                     skipped = Integer.parseInt(scannedCarton.getOrDefault(Constants.SKIP_COUNTER, "0"));
